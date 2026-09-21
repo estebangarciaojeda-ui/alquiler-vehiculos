@@ -18,7 +18,8 @@ Proyecto académico: los vehículos, precios y reservas son ficticios.
 1. Eliges sucursal de recogida, fechas y horas (y, si quieres, otra sucursal de devolución).
 2. Ves solo los vehículos **disponibles** en esas fechas, con filtros (marca, categoría, transmisión, pasajeros, precio) y orden.
 3. Reservas con tus datos y recibes un **código** (`AS-XXXXXX`).
-4. En "Mis reservas" consultas por correo o código y puedes cancelar (el vehículo vuelve a estar disponible).
+4. Carrusel "Marcas más buscadas" (logos vectoriales): un clic en una marca busca solo sus vehículos.
+5. En "Mis reservas" consultas por correo o código y puedes cancelar (el vehículo vuelve a estar disponible).
 
 ## Endpoints (`/swagger` para probarlos)
 

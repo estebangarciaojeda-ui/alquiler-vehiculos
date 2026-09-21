@@ -139,6 +139,7 @@ function mostrarError(selector, mensaje) {
 /* ---------- Estado ---------- */
 
 const estado = {
+  marcas: [],
   creditos: {},
   creditosListos: Promise.resolve(),
   sucursales: [],
@@ -449,6 +450,56 @@ async function cancelarReserva(id, codigo) {
   }
 }
 
+/* ---------- Marcas (carrusel) ---------- */
+
+const MARCAS_POPULARES = ['Kia', 'Toyota', 'Chevrolet', 'Hyundai', 'Suzuki', 'Nissan', 'Ford', 'Volkswagen', 'Mazda', 'Renault', 'Honda', 'Jeep', 'Mitsubishi', 'BMW', 'Mercedes-Benz', 'Tesla'];
+const claveMarca = (m) => m.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+function ordenarMarcas(marcas) {
+  const posicion = (m) => { const i = MARCAS_POPULARES.indexOf(m); return i === -1 ? 999 : i; };
+  return [...marcas].sort((a, b) => posicion(a) - posicion(b) || a.localeCompare(b, 'es'));
+}
+
+function tarjetaMarca(marca) {
+  const logo = `<img src="img/marcas/${esc(claveMarca(marca))}.svg" alt="" width="70" height="56" loading="lazy" data-logo="${esc(marca)}">`;
+  return `<button type="button" class="marca" data-marca="${esc(marca)}" aria-label="Ver autos ${esc(marca)}">
+    <span class="marca-logo">${logo}</span><span class="marca-nombre">${esc(marca)}</span></button>`;
+}
+
+function pintarMarcas() {
+  const marcas = ordenarMarcas(estado.marcas);
+  $('#marcas-pista').innerHTML = marcas.map(tarjetaMarca).join('');
+  $('#filtro-marca').insertAdjacentHTML('beforeend', [...estado.marcas].sort((a, b) => a.localeCompare(b, 'es')).map((m) => `<option value="${esc(m)}">${esc(m)}</option>`).join(''));
+  actualizarFlechas();
+}
+
+function actualizarFlechas() {
+  const pista = $('#marcas-pista');
+  $('#marcas-prev').disabled = pista.scrollLeft <= 2;
+  $('#marcas-next').disabled = pista.scrollLeft + pista.clientWidth >= pista.scrollWidth - 2;
+}
+
+function desplazarMarcas(direccion) {
+  const pista = $('#marcas-pista');
+  pista.scrollBy({ left: direccion * Math.max(240, pista.clientWidth * 0.8), behavior: 'smooth' });
+}
+
+function abrirTodasLasMarcas() {
+  $('#dlg-contenido').innerHTML = `<div class="dlg">
+    <div class="dlg-cab"><h2 id="dlg-titulo">Todas las marcas</h2><button type="button" class="cerrar" data-cerrar aria-label="Cerrar">&times;</button></div>
+    <p class="sub">Elige una marca para ver sus vehículos disponibles.</p>
+    <div class="marcas-grid">${ordenarMarcas(estado.marcas).map(tarjetaMarca).join('')}</div>
+  </div>`;
+  dlg().showModal();
+}
+
+async function elegirMarca(marca) {
+  estado.filtros.marca = marca;
+  $('#filtro-marca').value = marca;
+  if (dlg().open) dlg().close();
+  await buscar();
+}
+
 /* ---------- Créditos de las fotos ---------- */
 
 function abrirCreditos() {
@@ -463,7 +514,7 @@ function abrirCreditos() {
     .join('');
   $('#dlg-contenido').innerHTML = `<div class="dlg">
     <div class="dlg-cab"><h2 id="dlg-titulo">Créditos de las fotos</h2><button type="button" class="cerrar" data-cerrar aria-label="Cerrar">&times;</button></div>
-    <p class="sub">Fotografías de <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a> con licencias Creative Commons. Los vehículos mostrados son ilustrativos ("o similar").</p>
+    <p class="sub">Fotografías de <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a> con licencias Creative Commons. Los vehículos mostrados son ilustrativos ("o similar"). Logos de marcas: <a href="https://simpleicons.org/" target="_blank" rel="noopener">Simple Icons</a> (CC0); las marcas y logotipos pertenecen a sus respectivos dueños y se usan solo para identificar cada marca.</p>
     <ul class="creditos">${filas || '<li>No hay créditos disponibles.</li>'}</ul>
   </div>`;
   dlg().showModal();
@@ -506,11 +557,17 @@ function enlazarEventos() {
   });
   $('#limpiar-filtros').addEventListener('click', limpiarFiltros);
   $('#filtro-marca').addEventListener('change', (e) => { estado.filtros.marca = e.target.value; cargarResultados(); });
+  $('#marcas-prev').addEventListener('click', () => desplazarMarcas(-1));
+  $('#marcas-next').addEventListener('click', () => desplazarMarcas(1));
+  $('#marcas-todas').addEventListener('click', abrirTodasLasMarcas);
+  $('#marcas-pista').addEventListener('scroll', actualizarFlechas, { passive: true });
+  window.addEventListener('resize', actualizarFlechas);
 
   document.addEventListener('click', (e) => {
     const objetivo = e.target.closest('button');
     if (!objetivo) return;
-    if (objetivo.dataset.reservar) abrirReserva(Number(objetivo.dataset.reservar));
+    if (objetivo.dataset.marca) elegirMarca(objetivo.dataset.marca);
+    else if (objetivo.dataset.reservar) abrirReserva(Number(objetivo.dataset.reservar));
     else if (objetivo.dataset.cancelar) cancelarReserva(Number(objetivo.dataset.cancelar), objetivo.dataset.codigo);
     else if ('cerrar' in objetivo.dataset) dlg().close();
     else if (objetivo.dataset.verReservas !== undefined) {
@@ -532,6 +589,10 @@ function enlazarEventos() {
     'error',
     (e) => {
       const img = e.target;
+      if (img instanceof HTMLImageElement && img.dataset.logo) {
+        img.outerHTML = `<span class="marca-inicial">${esc(img.dataset.logo.charAt(0))}</span>`;
+        return;
+      }
       if (!(img instanceof HTMLImageElement) || !img.classList.contains('auto-foto')) return;
       const vehiculo = estado.vehiculos.find((x) => x.id === Number(img.dataset.id));
       const media = img.closest('.auto-media');
@@ -556,10 +617,8 @@ async function iniciar() {
   enlazarEventos();
   enrutar();
   api('/vehiculos/marcas')
-    .then((marcas) => {
-      $('#filtro-marca').insertAdjacentHTML('beforeend', marcas.map((m) => `<option value="${esc(m)}">${esc(m)}</option>`).join(''));
-    })
-    .catch(() => {});
+    .then((marcas) => { estado.marcas = marcas; pintarMarcas(); })
+    .catch(() => { $('#carrusel-marcas').closest('#promos').querySelector('.marcas-cab').hidden = true; $('#carrusel-marcas').hidden = true; });
   try {
     estado.sucursales = await api('/sucursales');
     pintarSucursales();

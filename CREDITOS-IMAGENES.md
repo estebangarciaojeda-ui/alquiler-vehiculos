@@ -46,3 +46,7 @@ Las fotos de los vehículos provienen de [Wikimedia Commons](https://commons.wik
 | Volkswagen Amarok | [2019 Volkswagen Amarok Highline V6 TDi 4MOTION 3.0 Front.jpg](https://commons.wikimedia.org/w/index.php?curid=78372265) | Vauxford | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
 | Volkswagen Gol | [Volkswagen Gol Highline 2023 (53708009248).jpg](https://commons.wikimedia.org/w/index.php?curid=148218229) | RL GNZLZ from Chile | [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0) |
 | Volkswagen T-Cross | [2019 Volkswagen T-Cross R-Line TSi 1.0 Front.jpg](https://commons.wikimedia.org/w/index.php?curid=81658105) | Vauxford | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
+
+## Logos de marcas
+
+Los logos del carrusel "Marcas más buscadas" (`public/img/marcas/*.svg`, vectoriales) provienen de [Simple Icons](https://simpleicons.org/) v16.32.0, publicados bajo licencia CC0 1.0. Las marcas y logotipos son propiedad de sus respectivos dueños y se usan únicamente para identificar cada marca.

@@ -280,3 +280,69 @@ dialog::backdrop { background: rgba(11, 31, 58, 0.6); }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* Carrusel de marcas */
+.marcas-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+.marcas-cab h2 { font-size: clamp(22px, 3vw, 30px); margin: 0; }
+.enlace { font: inherit; font-weight: 700; color: var(--azul); background: none; border: 0; cursor: pointer; padding: 4px 2px; border-radius: 6px; }
+.enlace:hover { text-decoration: underline; }
+.carrusel { position: relative; margin: 0 0 34px; }
+.marcas-pista {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 8px 4px 14px;
+  scroll-snap-type: x proximity;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.marcas-pista::-webkit-scrollbar { display: none; }
+.marca {
+  flex: 0 0 122px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 8px 14px;
+  font: inherit;
+  color: var(--texto);
+  background: var(--tarjeta);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+.marca:hover { transform: translateY(-3px); box-shadow: var(--sombra); border-color: var(--acento); }
+.marca-logo { width: 70px; height: 56px; display: grid; place-items: center; }
+.marca-logo img { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; }
+.marca-inicial { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 20px; color: var(--azul-osc); background: #e6efff; }
+.marca-nombre { font-weight: 600; font-size: 15px; text-align: center; line-height: 1.25; }
+.flecha {
+  position: absolute;
+  top: 44%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--texto);
+  background: #fff;
+  border: 1px solid var(--linea);
+  border-radius: 50%;
+  box-shadow: 0 4px 14px rgba(3, 30, 62, 0.18);
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+.flecha:hover:not([disabled]) { background: #f2f7ff; }
+.flecha[disabled] { opacity: 0.4; cursor: default; box-shadow: none; }
+.flecha-prev { left: -14px; }
+.flecha-next { right: -14px; }
+.marcas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 12px; margin-top: 12px; max-height: 60vh; overflow: auto; padding: 4px; }
+.marcas-grid .marca { flex: none; }
+@media (max-width: 600px) {
+  .flecha { display: none; }
+  .marca { flex-basis: 108px; }
+}
