@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: alquiler-vehiculos
+    env: node
+    plan: free
+    buildCommand: npm install --include=dev && npx tsc -p tsconfig.build.json
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_VERSION
+        value: 22.12.0
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: productos-db
+          property: connectionString

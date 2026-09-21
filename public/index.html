@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AutoRuta · Alquiler de vehículos en Ecuador</title>
+  <meta name="description" content="Compara y reserva autos, SUV, camionetas y vans en Quito, Guayaquil, Cuenca y Manta.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="aviso" class="aviso" role="status" hidden>El servidor gratuito se está despertando. La primera carga puede tardar hasta un minuto.</div>
+
+  <header class="topbar">
+    <a class="brand" href="#inicio" aria-label="AutoRuta, ir al inicio">
+      <img src="favicon.svg" alt="" width="32" height="32">
+      <span>AutoRuta</span>
+    </a>
+    <nav aria-label="Principal">
+      <a href="#inicio" data-nav="inicio">Alquilar</a>
+      <a href="#mis-reservas" data-nav="mis-reservas">Mis reservas</a>
+      <a href="/swagger" target="_blank" rel="noopener">API</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="vista-inicio">
+      <div class="hero">
+        <div class="hero-inner">
+          <h1>Alquila el vehículo ideal para tu próximo viaje</h1>
+          <p class="hero-sub">Compara precios, elige la sucursal y reserva en minutos. Cancelación gratuita.</p>
+
+          <form id="form-busqueda" class="buscador" novalidate>
+            <label class="campo campo-lugar">
+              <span>Lugar de recogida</span>
+              <select id="sucursal" required><option value="">Cargando sucursales…</option></select>
+            </label>
+            <label class="campo">
+              <span>Fecha de recogida</span>
+              <input type="date" id="fecha-recogida" required>
+            </label>
+            <label class="campo campo-hora">
+              <span>Hora</span>
+              <select id="hora-recogida"></select>
+            </label>
+            <label class="campo">
+              <span>Fecha de devolución</span>
+              <input type="date" id="fecha-devolucion" required>
+            </label>
+            <label class="campo campo-hora">
+              <span>Hora</span>
+              <select id="hora-devolucion"></select>
+            </label>
+            <button type="submit" class="btn btn-buscar">Buscar</button>
+
+            <div class="buscador-extra">
+              <label class="check"><input type="checkbox" id="otra-devolucion"> Devolver en otra sucursal</label>
+              <label class="campo campo-lugar" id="wrap-devolucion" hidden>
+                <span>Lugar de devolución</span>
+                <select id="sucursal-devolucion"></select>
+              </label>
+            </div>
+            <p id="error-busqueda" class="error" role="alert" hidden></p>
+          </form>
+        </div>
+      </div>
+
+      <section id="promos" class="contenedor">
+        <ul class="beneficios">
+          <li><strong>Cancelación gratuita</strong><span>Cambia de planes sin costo hasta el día de la recogida.</span></li>
+          <li><strong>Precio final claro</strong><span>Ves el total antes de reservar, sin cargos ocultos.</span></li>
+          <li><strong>Sucursales en aeropuertos</strong><span>Recoge tu vehículo apenas aterrizas.</span></li>
+        </ul>
+        <h2>Destinos populares</h2>
+        <div id="destinos" class="destinos"></div>
+      </section>
+
+      <section id="resultados" class="contenedor resultados" hidden>
+        <div class="resultados-cab">
+          <div>
+            <h2 id="res-titulo" tabindex="-1"></h2>
+            <p id="res-sub" class="sub"></p>
+          </div>
+          <label class="orden">
+            <span>Ordenar por</span>
+            <select id="orden">
+              <option value="precio_asc">Precio: menor a mayor</option>
+              <option value="precio_desc">Precio: mayor a menor</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="resultados-cuerpo">
+          <details class="filtros" id="filtros" open>
+            <summary>Filtros</summary>
+            <fieldset>
+              <legend>Categoría</legend>
+              <label><input type="radio" name="categoria" value="" checked> Todas</label>
+              <label><input type="radio" name="categoria" value="ECONOMICO"> Económico</label>
+              <label><input type="radio" name="categoria" value="COMPACTO"> Compacto</label>
+              <label><input type="radio" name="categoria" value="INTERMEDIO"> Intermedio</label>
+              <label><input type="radio" name="categoria" value="SUV"> SUV</label>
+              <label><input type="radio" name="categoria" value="CAMIONETA"> Camioneta</label>
+              <label><input type="radio" name="categoria" value="VAN"> Van</label>
+              <label><input type="radio" name="categoria" value="LUJO"> Lujo</label>
+            </fieldset>
+            <fieldset>
+              <legend>Transmisión</legend>
+              <label><input type="radio" name="transmision" value="" checked> Cualquiera</label>
+              <label><input type="radio" name="transmision" value="MANUAL"> Manual</label>
+              <label><input type="radio" name="transmision" value="AUTOMATICA"> Automática</label>
+            </fieldset>
+            <fieldset>
+              <legend>Pasajeros</legend>
+              <label><input type="radio" name="pasajeros" value="" checked> Cualquiera</label>
+              <label><input type="radio" name="pasajeros" value="5"> 5 o más</label>
+              <label><input type="radio" name="pasajeros" value="7"> 7 o más</label>
+            </fieldset>
+            <fieldset>
+              <legend>Precio máximo por día</legend>
+              <input type="range" id="precio-max" min="20" max="200" step="5" value="200" aria-describedby="precio-max-valor">
+              <output id="precio-max-valor" for="precio-max">Sin límite</output>
+            </fieldset>
+            <button type="button" class="btn btn-secundario" id="limpiar-filtros">Limpiar filtros</button>
+          </details>
+
+          <div id="lista" class="lista" aria-live="polite"></div>
+        </div>
+      </section>
+    </section>
+
+    <section id="vista-reservas" class="contenedor" hidden>
+      <h1>Mis reservas</h1>
+      <p class="sub">Consulta tus reservas con tu correo o con el código que recibiste al reservar.</p>
+      <form id="form-reservas" class="consulta" novalidate>
+        <label class="campo">
+          <span>Correo electrónico</span>
+          <input type="email" id="consulta-email" autocomplete="email" placeholder="tu@correo.com">
+        </label>
+        <span class="o">o</span>
+        <label class="campo">
+          <span>Código de reserva</span>
+          <input type="text" id="consulta-codigo" placeholder="AR-XXXXXX" autocapitalize="characters">
+        </label>
+        <button type="submit" class="btn btn-primario">Consultar</button>
+      </form>
+      <p id="error-consulta" class="error" role="alert" hidden></p>
+      <div id="lista-reservas" class="lista-reservas" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <dialog id="dlg-reserva" aria-labelledby="dlg-titulo">
+    <div id="dlg-contenido"></div>
+  </dialog>
+
+  <footer class="pie">
+    <p>AutoRuta es un proyecto académico de ejemplo: los vehículos, precios y reservas son ficticios.</p>
+    <p>
+      <a href="/swagger" target="_blank" rel="noopener">Documentación de la API (Swagger)</a> ·
+      <a href="https://github.com/estebangarciaojeda-ui/alquiler-vehiculos" target="_blank" rel="noopener">Código en GitHub</a>
+    </p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
