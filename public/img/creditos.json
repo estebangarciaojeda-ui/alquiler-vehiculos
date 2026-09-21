@@ -1,0 +1,178 @@
+{
+  "chevrolet-spark-gt": {
+    "modelo": "Chevrolet Spark GT",
+    "foto": "2021 Chevrolet Spark GT Activ (Chile) front view.jpg",
+    "autor": "RL GNZLZ",
+    "licencia": "CC BY-SA 2.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=112619163"
+  },
+  "kia-rio": {
+    "modelo": "Kia Rio",
+    "foto": "2022 Kia Rio.jpg",
+    "autor": "Jakub CA",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=115879451"
+  },
+  "hyundai-tucson": {
+    "modelo": "Hyundai Tucson",
+    "foto": "2022 Hyundai Tucson SEL, front 5.2.22.jpg",
+    "autor": "Kevauto",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=118421547"
+  },
+  "toyota-hilux": {
+    "modelo": "Toyota Hilux",
+    "foto": "2024 Toyota Hilux 2.4 G 4x2 in Attitude Black Mica, front right.jpg",
+    "autor": "Ethan Llamas",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=153982499"
+  },
+  "renault-kwid": {
+    "modelo": "Renault Kwid",
+    "foto": "Renault Kwid 2017 in Montevideo (front).jpg",
+    "autor": "NaBUru38",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=99192934"
+  },
+  "chevrolet-onix": {
+    "modelo": "Chevrolet Onix",
+    "foto": "2022 Chevrolet Onix Plus 1.0 Premier (front).jpg",
+    "autor": "Just a Man",
+    "licencia": "CC BY 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=161424200"
+  },
+  "kia-sportage": {
+    "modelo": "Kia Sportage",
+    "foto": "2018 Kia Sportage GT-Line ISG 1.6.jpg",
+    "autor": "Vauxford",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=74910066"
+  },
+  "hyundai-h1": {
+    "modelo": "Hyundai H1",
+    "foto": "Hyundai Grand Starex 2.5 GLS TCI 2018.jpg",
+    "autor": "Ethan Llamas",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=137164616"
+  },
+  "bmw-serie-3": {
+    "modelo": "BMW Serie 3",
+    "foto": "BMW G20 (2022) IMG 7316.jpg",
+    "autor": "Alexander-93",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=132079563"
+  },
+  "kia-picanto": {
+    "modelo": "Kia Picanto",
+    "foto": "2017 Kia Picanto GT-Line S 1.2 Front.jpg",
+    "autor": "Vauxford",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=69281764"
+  },
+  "toyota-corolla": {
+    "modelo": "Toyota Corolla",
+    "foto": "2021 Toyota Corolla LE, front right, 07-13-2024.jpg",
+    "autor": "MercurySable99",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=150314505"
+  },
+  "chevrolet-captiva": {
+    "modelo": "Chevrolet Captiva",
+    "foto": "2017 Chevrolet Captiva 2.0 LS VCDi in Sapphire Black, front right, 06-21-2024.jpg",
+    "autor": "Ethan Llamas",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=149574709"
+  },
+  "mercedes-benz-clase-c": {
+    "modelo": "Mercedes-Benz Clase C",
+    "foto": "2024 Mercedes-Benz W206 C180 Avantgarde in Mojave Silver, front right, 07-10-2024.jpg",
+    "autor": "Ethan Llamas",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=150197781"
+  },
+  "chevrolet-sail": {
+    "modelo": "Chevrolet Sail",
+    "foto": "2016 SAIC-GM-Chevrolet Sail, front 8.4.18.jpg",
+    "autor": "Kevauto",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=86307292"
+  },
+  "nissan-kicks": {
+    "modelo": "Nissan Kicks",
+    "foto": "2018 Nissan Kicks SV front 3.30.19.jpg",
+    "autor": "Kevauto",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=79535240"
+  },
+  "toyota-fortuner": {
+    "modelo": "Toyota Fortuner",
+    "foto": "2018 Toyota Fortuner TRD Sportivo looking from front.jpg",
+    "autor": "VulcanSphere",
+    "licencia": "CC BY 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=119176362"
+  },
+  "suzuki-swift": {
+    "modelo": "Suzuki Swift",
+    "foto": "2018 Suzuki Swift SZ5 Boosterjet SHVS 1.0 Front.jpg",
+    "autor": "Vauxford",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=74808822"
+  },
+  "mazda-cx-5": {
+    "modelo": "Mazda CX-5",
+    "foto": "2022 Mazda CX-5 2.0 front.jpg",
+    "autor": "ShangTW",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=170647083"
+  },
+  "hyundai-staria": {
+    "modelo": "Hyundai Staria",
+    "foto": "2024 Hyundai Staria 2.2 Premium H-TRAC AWD in Abyss Black, front left, 07-04-2024.jpg",
+    "autor": "Ethan Llamas",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=150026121"
+  },
+  "kia-soluto": {
+    "modelo": "Kia Soluto",
+    "foto": "2019 Kia Soluto EX - Front.jpg",
+    "autor": "Areaseven",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=77156500"
+  },
+  "toyota-corolla-cross": {
+    "modelo": "Toyota Corolla Cross",
+    "foto": "2022 Toyota Corolla Cross L FWD, Front Left, 11-21-2021.jpg",
+    "autor": "Elise240SX",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=112700134"
+  },
+  "ford-ranger": {
+    "modelo": "Ford Ranger",
+    "foto": "2017 Ford Ranger Wildtrak.jpg",
+    "autor": "Vauxford",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=63799360"
+  }
+}

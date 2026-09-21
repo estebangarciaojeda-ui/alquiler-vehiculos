@@ -170,7 +170,7 @@ select:hover, input:hover { border-color: #b7c4d9; }
 
 .auto {
   display: grid;
-  grid-template-columns: 230px 1fr 210px;
+  grid-template-columns: 290px 1fr 190px;
   background: var(--tarjeta);
   border: 1px solid var(--linea);
   border-radius: var(--radio);
@@ -180,6 +180,27 @@ select:hover, input:hover { border-color: #b7c4d9; }
 .auto:hover { box-shadow: var(--sombra); }
 .auto-media { position: relative; background: linear-gradient(180deg, #eaf1fc, #f8fbff); display: flex; align-items: center; justify-content: center; padding: 16px 12px; }
 .auto-img { width: 100%; height: auto; }
+.auto-media--foto { padding: 0; background: #dfe7f3; min-height: 190px; }
+.auto-foto { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 60%; display: block; }
+.foto-credito {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  max-width: 100%;
+  padding: 2px 8px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: #fff;
+  background: rgba(11, 31, 58, 0.72);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-top-left-radius: 8px;
+}
+.foto-credito:hover, .foto-credito:focus-visible { background: rgba(11, 31, 58, 0.95); text-decoration: underline; }
+.creditos { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; max-height: 55vh; overflow: auto; font-size: 14px; }
+.creditos li { padding-bottom: 10px; border-bottom: 1px solid var(--linea); overflow-wrap: anywhere; }
 .chip { position: absolute; top: 10px; left: 10px; background: var(--navy); color: #fff; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
 .auto-info { padding: 16px 18px; min-width: 0; }
 .auto-info h3 { font-size: 20px; }
@@ -239,7 +260,7 @@ dialog::backdrop { background: rgba(11, 31, 58, 0.6); }
   .filtros fieldset { display: flex; flex-wrap: wrap; gap: 0 18px; }
   .filtros legend { margin-bottom: 2px; }
   .filtros fieldset input[type="range"], .filtros fieldset output { flex: 1 1 100%; }
-  .auto { grid-template-columns: 200px 1fr; }
+  .auto { grid-template-columns: 270px 1fr; }
   .auto-precio { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--linea); flex-direction: row; align-items: center; justify-content: space-between; text-align: left; }
   .auto-precio .detalle { margin: 0; }
   .consulta { grid-template-columns: 1fr; }
@@ -251,6 +272,7 @@ dialog::backdrop { background: rgba(11, 31, 58, 0.6); }
   .topbar nav a[href="/swagger"] { display: none; }
   .brand span { font-size: 18px; }
   .auto { grid-template-columns: 1fr; }
+  .auto-media--foto { aspect-ratio: 16 / 10; min-height: 0; }
   .reserva { grid-template-columns: 1fr; }
   .reserva .lado { align-items: flex-start; }
 }

@@ -59,6 +59,15 @@ const CARROCERIAS = {
 const TIPO_POR_CATEGORIA = { ECONOMICO: 'sedan', COMPACTO: 'sedan', INTERMEDIO: 'sedan', SUV: 'suv', CAMIONETA: 'pickup', VAN: 'van', LUJO: 'lujo' };
 const COLORES = ['#1d4ed8', '#0f766e', '#b91c1c', '#334155', '#a16207', '#6d28d9', '#0369a1', '#166534'];
 
+const claveModelo = (v) =>
+  `${v.marca} ${v.modelo}`.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+function fotoAuto(v, credito) {
+  const autor = credito.autor || 'Wikimedia Commons';
+  return `<img class="auto-foto" src="img/autos/${esc(claveModelo(v))}.jpg" alt="${esc(v.marca)} ${esc(v.modelo)}" width="960" height="600" loading="lazy" data-id="${v.id}">
+    <a class="foto-credito" href="${esc(credito.pagina)}" target="_blank" rel="noopener" title="Foto: ${esc(autor)} · ${esc(credito.licencia)}">Foto: ${esc(autor)} · ${esc(credito.licencia)}</a>`;
+}
+
 function dibujarAuto(v) {
   const c = CARROCERIAS[TIPO_POR_CATEGORIA[v.categoria] ?? 'sedan'];
   const color = COLORES[v.id % COLORES.length];
@@ -130,6 +139,8 @@ function mostrarError(selector, mensaje) {
 /* ---------- Estado ---------- */
 
 const estado = {
+  creditos: {},
+  creditosListos: Promise.resolve(),
   sucursales: [],
   busqueda: null,
   filtros: { categoria: '', transmision: '', pasajeros: '', precioMax: 200, orden: 'precio_asc' },
@@ -236,6 +247,7 @@ async function cargarResultados() {
   $('#lista').innerHTML = '<div class="cargando"></div><div class="cargando"></div><div class="cargando"></div>';
   try {
     const vehiculos = await api(`/vehiculos?${consulta}`);
+    await estado.creditosListos;
     if (turno !== estado.peticion) return;
     estado.vehiculos = vehiculos;
     pintarResultados();
@@ -261,7 +273,7 @@ function pintarResultados() {
     .map((v) => {
       const total = v.precioPorDia * b.dias;
       return `<article class="auto">
-        <div class="auto-media">${dibujarAuto(v)}<span class="chip">${esc(ETIQUETAS.categoria[v.categoria] ?? v.categoria)}</span></div>
+        <div class="auto-media${estado.creditos[claveModelo(v)] ? ' auto-media--foto' : ''}">${estado.creditos[claveModelo(v)] ? fotoAuto(v, estado.creditos[claveModelo(v)]) : dibujarAuto(v)}<span class="chip">${esc(ETIQUETAS.categoria[v.categoria] ?? v.categoria)}</span></div>
         <div class="auto-info">
           <h3>${esc(v.marca)} ${esc(v.modelo)} <small>o similar · ${v.anio}</small></h3>
           <p class="auto-suc">${icono('pin')} ${esc(v.sucursal.nombre)}, ${esc(v.sucursal.ciudad)}</p>
@@ -435,6 +447,26 @@ async function cancelarReserva(id, codigo) {
   }
 }
 
+/* ---------- Créditos de las fotos ---------- */
+
+function abrirCreditos() {
+  const enlace = (url) => (String(url).startsWith('https://') ? esc(url) : '#');
+  const filas = Object.values(estado.creditos)
+    .sort((a, b) => a.modelo.localeCompare(b.modelo, 'es'))
+    .map(
+      (c) => `<li><strong>${esc(c.modelo)}</strong><br>
+        <a href="${enlace(c.pagina)}" target="_blank" rel="noopener">${esc(c.foto)}</a> · ${esc(c.autor || 'Autor desconocido')} ·
+        <a href="${enlace(c.licenciaUrl)}" target="_blank" rel="noopener">${esc(c.licencia)}</a></li>`,
+    )
+    .join('');
+  $('#dlg-contenido').innerHTML = `<div class="dlg">
+    <div class="dlg-cab"><h2 id="dlg-titulo">Créditos de las fotos</h2><button type="button" class="cerrar" data-cerrar aria-label="Cerrar">&times;</button></div>
+    <p class="sub">Fotografías de <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a> con licencias Creative Commons. Los vehículos mostrados son ilustrativos ("o similar").</p>
+    <ul class="creditos">${filas || '<li>No hay créditos disponibles.</li>'}</ul>
+  </div>`;
+  dlg().showModal();
+}
+
 /* ---------- Navegación y eventos ---------- */
 
 function enrutar() {
@@ -492,11 +524,30 @@ function enlazarEventos() {
     }
   });
   dlg().addEventListener('click', (e) => { if (e.target === dlg()) dlg().close(); });
+  $('#ver-creditos').addEventListener('click', (e) => { e.preventDefault(); abrirCreditos(); });
+  document.addEventListener(
+    'error',
+    (e) => {
+      const img = e.target;
+      if (!(img instanceof HTMLImageElement) || !img.classList.contains('auto-foto')) return;
+      const vehiculo = estado.vehiculos.find((x) => x.id === Number(img.dataset.id));
+      const media = img.closest('.auto-media');
+      if (!vehiculo || !media) return;
+      media.classList.remove('auto-media--foto');
+      media.querySelector('.foto-credito')?.remove();
+      img.outerHTML = dibujarAuto(vehiculo);
+    },
+    true,
+  );
   $('#consulta-email').value = leer('ar-email');
 }
 
 async function iniciar() {
   if (matchMedia('(max-width: 1000px)').matches) $('#filtros').open = false;
+  estado.creditosListos = fetch('img/creditos.json')
+    .then((r) => (r.ok ? r.json() : {}))
+    .then((datos) => { estado.creditos = datos; })
+    .catch(() => {});
   llenarHoras();
   configurarFechas();
   enlazarEventos();
