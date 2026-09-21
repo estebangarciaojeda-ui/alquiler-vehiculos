@@ -3,6 +3,11 @@
 Sitio web de alquiler de vehículos (estilo buscador de autos de viajes) con API REST propia.
 Proyecto académico: los vehículos, precios y reservas son ficticios.
 
+- **Sitio en vivo:** https://alquiler-vehiculos-ijx3.onrender.com
+- **Swagger:** https://alquiler-vehiculos-ijx3.onrender.com/swagger
+
+(Plan gratuito de Render: si lleva un rato sin uso, la primera carga puede tardar hasta un minuto.)
+
 - **Frontend:** HTML + CSS + JavaScript sin librerías (`public/`), servido por el mismo servidor.
 - **Backend:** NestJS + TypeScript, validación con DTOs (`class-validator`), documentación con Swagger.
 - **Base de datos:** PostgreSQL con TypeORM (tablas `sucursales`, `vehiculos`, `reservas`; datos iniciales automáticos).
