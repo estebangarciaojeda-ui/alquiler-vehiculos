@@ -191,7 +191,13 @@ function pintarDestinos() {
   const porCiudad = {};
   for (const s of estado.sucursales) (porCiudad[s.ciudad] ??= []).push(s);
   $('#destinos').innerHTML = Object.entries(porCiudad)
-    .map(([ciudad, lista]) => `<button type="button" class="destino" data-ciudad="${esc(ciudad)}"><strong>${esc(ciudad)}</strong><span>${lista.length} ${lista.length === 1 ? 'sucursal' : 'sucursales'}</span></button>`)
+    .map(([ciudad, lista]) => {
+      const clave = claveMarca(ciudad);
+      const credito = estado.creditos[`ciudad-${clave}`];
+      const foto = `<img class="destino-foto" src="img/ciudades/${esc(clave)}.jpg" alt="" width="900" height="600" loading="lazy">`;
+      const autor = credito ? `<span class="destino-credito">Foto: ${esc(credito.autor || 'Wikimedia Commons')} · ${esc(credito.licencia)}</span>` : '';
+      return `<button type="button" class="destino" data-ciudad="${esc(ciudad)}">${foto}${autor}<strong>${esc(ciudad)}</strong><span class="destino-sub">${lista.length} ${lista.length === 1 ? 'sucursal' : 'sucursales'}</span></button>`;
+    })
     .join('');
 }
 
@@ -589,6 +595,11 @@ function enlazarEventos() {
     'error',
     (e) => {
       const img = e.target;
+      if (img instanceof HTMLImageElement && img.classList.contains('destino-foto')) {
+        img.closest('.destino')?.querySelector('.destino-credito')?.remove();
+        img.remove();
+        return;
+      }
       if (img instanceof HTMLImageElement && img.dataset.logo) {
         img.outerHTML = `<span class="marca-inicial">${esc(img.dataset.logo.charAt(0))}</span>`;
         return;
@@ -622,6 +633,7 @@ async function iniciar() {
   try {
     estado.sucursales = await api('/sucursales');
     pintarSucursales();
+    await estado.creditosListos;
     pintarDestinos();
   } catch (error) {
     $('#sucursal').innerHTML = '<option value="">No se pudieron cargar las sucursales</option>';

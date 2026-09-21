@@ -1,8 +1,8 @@
 # Créditos de las fotografías
 
-Las fotos de los vehículos provienen de [Wikimedia Commons](https://commons.wikimedia.org/) y se usan bajo sus licencias Creative Commons (reducidas a 960 px de ancho). Cada foto conserva el crédito de su autor y la licencia original. Los vehículos mostrados son ilustrativos ("o similar").
+Las fotos de los vehículos y de los destinos provienen de [Wikimedia Commons](https://commons.wikimedia.org/) y se usan bajo sus licencias Creative Commons o de dominio público (reducidas de tamaño). Cada foto conserva el crédito de su autor y la licencia original. Los vehículos mostrados son ilustrativos ("o similar").
 
-| Modelo | Foto (archivo original) | Autor | Licencia |
+| Modelo / destino | Foto (archivo original) | Autor | Licencia |
 |---|---|---|---|
 | BMW Serie 3 | [BMW G20 (2022) IMG 7316.jpg](https://commons.wikimedia.org/w/index.php?curid=132079563) | Alexander-93 | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
 | Chevrolet Captiva | [2017 Chevrolet Captiva 2.0 LS VCDi in Sapphire Black, front right, 06-21-2024.jpg](https://commons.wikimedia.org/w/index.php?curid=149574709) | Ethan Llamas | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
@@ -10,7 +10,9 @@ Las fotos de los vehículos provienen de [Wikimedia Commons](https://commons.wik
 | Chevrolet Sail | [2016 SAIC-GM-Chevrolet Sail, front 8.4.18.jpg](https://commons.wikimedia.org/w/index.php?curid=86307292) | Kevauto | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
 | Chevrolet Spark GT | [2021 Chevrolet Spark GT Activ (Chile) front view.jpg](https://commons.wikimedia.org/w/index.php?curid=112619163) | RL GNZLZ | [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0) |
 | Chevrolet Tracker | [2022 Chevrolet Tracker 1.2 Turbo LTZ, front (Argentina).jpg](https://commons.wikimedia.org/w/index.php?curid=143953330) | Maxi-Napo-99 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0) |
+| Cuenca (foto del destino) | [Domes of the Catedral de la Immaculada Concepción.jpg](https://commons.wikimedia.org/w/index.php?curid=47158520) | Bernard Gagnon | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0) |
 | Ford Ranger | [2017 Ford Ranger Wildtrak.jpg](https://commons.wikimedia.org/w/index.php?curid=63799360) | Vauxford | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
+| Guayaquil (foto del destino) | [Puente en malecón, Guayaquil, Ecuador.jpg](https://commons.wikimedia.org/w/index.php?curid=21492696) | Athena Lao | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0) |
 | Honda Civic | [2022 Honda Civic LX Sedan, front right, 11-02-2022.jpg](https://commons.wikimedia.org/w/index.php?curid=124960561) | MercurySable99 | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
 | Honda HR-V | [2019 Honda HR-V EX i-VTEC 1.5 Front.jpg](https://commons.wikimedia.org/w/index.php?curid=92832396) | Vauxford | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
 | Hyundai Accent | [2019 Hyundai Accent Preferred in Urban Grey, Front Left, 05-22-2022.jpg](https://commons.wikimedia.org/w/index.php?curid=118367386) | Elise240SX | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
@@ -27,12 +29,14 @@ Las fotos de los vehículos provienen de [Wikimedia Commons](https://commons.wik
 | Kia Seltos | [2021 Kia Seltos SX, front 6.2.22.jpg](https://commons.wikimedia.org/w/index.php?curid=120091051) | Kevauto | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
 | Kia Soluto | [2019 Kia Soluto EX - Front.jpg](https://commons.wikimedia.org/w/index.php?curid=77156500) | Areaseven | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
 | Kia Sportage | [2018 Kia Sportage GT-Line ISG 1.6.jpg](https://commons.wikimedia.org/w/index.php?curid=74910066) | Vauxford | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
+| Manta (foto del destino) | [Playa de Manta.jpg](https://commons.wikimedia.org/w/index.php?curid=9939304) | Monserrate Carrillo | [Public domain]() |
 | Mazda 3 | [2019 Mazda3, Front Right, 10-07-2020.jpg](https://commons.wikimedia.org/w/index.php?curid=95241445) | SsmIntrigue | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
 | Mazda CX-5 | [2022 Mazda CX-5 2.0 front.jpg](https://commons.wikimedia.org/w/index.php?curid=170647083) | ShangTW | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
 | Mercedes-Benz Clase C | [2024 Mercedes-Benz W206 C180 Avantgarde in Mojave Silver, front right, 07-10-2024.jpg](https://commons.wikimedia.org/w/index.php?curid=150197781) | Ethan Llamas | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
 | Mitsubishi L200 | [2019 Mitsubishi L200 Warrior DI-D 2.3 Front.jpg](https://commons.wikimedia.org/w/index.php?curid=95433586) | Vauxford | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
 | Nissan Frontier | [Nissan Frontier (D41) Pro-4X Automesse Ludwigsburg 2022 1X7A5885.jpg](https://commons.wikimedia.org/w/index.php?curid=123345374) | Alexander Migl | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
 | Nissan Kicks | [2018 Nissan Kicks SV front 3.30.19.jpg](https://commons.wikimedia.org/w/index.php?curid=79535240) | Kevauto | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
+| Quito (foto del destino) | [El Panecillo, Quito, Ecuador, 2015-07-22, DD 183.JPG](https://commons.wikimedia.org/w/index.php?curid=42184428) | Diego Delso | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
 | Renault Kwid | [Renault Kwid 2017 in Montevideo (front).jpg](https://commons.wikimedia.org/w/index.php?curid=99192934) | NaBUru38 | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
 | Suzuki Swift | [2018 Suzuki Swift SZ5 Boosterjet SHVS 1.0 Front.jpg](https://commons.wikimedia.org/w/index.php?curid=74808822) | Vauxford | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |
 | Tesla Model 3 | [2019 Tesla Model 3 Long Range Dual Motor in Red Multi-Coat, front left, 2021-05-30.jpg](https://commons.wikimedia.org/w/index.php?curid=107352990) | Elise240SX | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) |

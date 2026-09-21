@@ -334,5 +334,37 @@
     "licencia": "CC BY-SA 4.0",
     "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
     "pagina": "https://commons.wikimedia.org/w/index.php?curid=120091051"
+  },
+  "ciudad-quito": {
+    "modelo": "Quito (foto del destino)",
+    "foto": "El Panecillo, Quito, Ecuador, 2015-07-22, DD 183.JPG",
+    "autor": "Diego Delso",
+    "licencia": "CC BY-SA 4.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=42184428"
+  },
+  "ciudad-guayaquil": {
+    "modelo": "Guayaquil (foto del destino)",
+    "foto": "Puente en malecón, Guayaquil, Ecuador.jpg",
+    "autor": "Athena Lao",
+    "licencia": "CC BY 2.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by/2.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=21492696"
+  },
+  "ciudad-cuenca": {
+    "modelo": "Cuenca (foto del destino)",
+    "foto": "Domes of the Catedral de la Immaculada Concepción.jpg",
+    "autor": "Bernard Gagnon",
+    "licencia": "CC BY-SA 3.0",
+    "licenciaUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=47158520"
+  },
+  "ciudad-manta": {
+    "modelo": "Manta (foto del destino)",
+    "foto": "Playa de Manta.jpg",
+    "autor": "Monserrate Carrillo",
+    "licencia": "Public domain",
+    "licenciaUrl": "",
+    "pagina": "https://commons.wikimedia.org/w/index.php?curid=9939304"
   }
 }
