@@ -62,10 +62,12 @@ const COLORES = ['#1d4ed8', '#0f766e', '#b91c1c', '#334155', '#a16207', '#6d28d9
 const claveModelo = (v) =>
   `${v.marca} ${v.modelo}`.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
+const DOMINIO_PUBLICO = /public domain|cc0/i;
+
 function fotoAuto(v, credito) {
   const autor = credito.autor || 'Wikimedia Commons';
-  return `<img class="auto-foto" src="img/autos/${esc(claveModelo(v))}.jpg" alt="${esc(v.marca)} ${esc(v.modelo)}" width="960" height="600" loading="lazy" data-id="${v.id}">
-    <a class="foto-credito" href="${esc(credito.pagina)}" target="_blank" rel="noopener" title="Foto: ${esc(autor)} · ${esc(credito.licencia)}">Foto: ${esc(autor)} · ${esc(credito.licencia)}</a>`;
+  const etiqueta = DOMINIO_PUBLICO.test(credito.licencia) ? '' : `<a class="foto-credito" href="${esc(credito.pagina)}" target="_blank" rel="noopener" title="Foto: ${esc(autor)} · ${esc(credito.licencia)}">Foto: ${esc(autor)} · ${esc(credito.licencia)}</a>`;
+  return `<img class="auto-foto" src="img/autos/${esc(claveModelo(v))}.jpg" alt="${esc(v.marca)} ${esc(v.modelo)}" width="960" height="600" loading="lazy" data-id="${v.id}">${etiqueta}`;
 }
 
 function dibujarAuto(v) {
@@ -195,7 +197,7 @@ function pintarDestinos() {
       const clave = claveMarca(ciudad);
       const credito = estado.creditos[`ciudad-${clave}`];
       const foto = `<img class="destino-foto" src="img/ciudades/${esc(clave)}.jpg" alt="" width="900" height="600" loading="lazy">`;
-      const autor = credito ? `<span class="destino-credito">Foto: ${esc(credito.autor || 'Wikimedia Commons')} · ${esc(credito.licencia)}</span>` : '';
+      const autor = credito && !DOMINIO_PUBLICO.test(credito.licencia) ? `<span class="destino-credito">Foto: ${esc(credito.autor || 'Wikimedia Commons')} · ${esc(credito.licencia)}</span>` : '';
       return `<button type="button" class="destino" data-ciudad="${esc(ciudad)}">${foto}${autor}<strong>${esc(ciudad)}</strong><span class="destino-sub">${lista.length} ${lista.length === 1 ? 'sucursal' : 'sucursales'}</span></button>`;
     })
     .join('');
