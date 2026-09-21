@@ -1,4 +1,4 @@
-# AutoRuta · Alquiler de vehículos
+# AutoSpot · Alquiler de vehículos
 
 Sitio web de alquiler de vehículos (estilo buscador de autos de viajes) con API REST propia.
 Proyecto académico: los vehículos, precios y reservas son ficticios.
@@ -16,8 +16,8 @@ Proyecto académico: los vehículos, precios y reservas son ficticios.
 ## Qué hace
 
 1. Eliges sucursal de recogida, fechas y horas (y, si quieres, otra sucursal de devolución).
-2. Ves solo los vehículos **disponibles** en esas fechas, con filtros (categoría, transmisión, pasajeros, precio) y orden.
-3. Reservas con tus datos y recibes un **código** (`AR-XXXXXX`).
+2. Ves solo los vehículos **disponibles** en esas fechas, con filtros (marca, categoría, transmisión, pasajeros, precio) y orden.
+3. Reservas con tus datos y recibes un **código** (`AS-XXXXXX`).
 4. En "Mis reservas" consultas por correo o código y puedes cancelar (el vehículo vuelve a estar disponible).
 
 ## Endpoints (`/swagger` para probarlos)
@@ -25,7 +25,7 @@ Proyecto académico: los vehículos, precios y reservas son ficticios.
 | Recurso | Operaciones |
 |---|---|
 | `/api/v1/sucursales` | `GET` lista (`?ciudad=`), `GET :id`, `POST` (201 + `Location`), `PUT :id` (204), `DELETE :id` (204/409) |
-| `/api/v1/vehiculos` | `GET` con filtros (`sucursalId`, `ciudad`, `categoria`, `transmision`, `pasajeros`, `precioMax`, `desde`+`hasta`, `orden`), `GET :id`, `POST`, `PUT :id`, `PATCH :id` (precio), `DELETE :id` |
+| `/api/v1/vehiculos` | `GET /marcas` (lista de marcas), `GET` con filtros (`sucursalId`, `ciudad`, `marca`, `categoria`, `transmision`, `pasajeros`, `precioMax`, `desde`+`hasta`, `orden`), `GET :id`, `POST`, `PUT :id`, `PATCH :id` (precio), `DELETE :id` |
 | `/api/v1/reservas` | `GET` (`?email=` o `?codigo=`), `GET :id`, `POST` (201, 409 si hay solape), `PATCH :id/cancelar`, `DELETE :id` |
 
 Códigos usados: 200, 201, 204, 400 (datos inválidos), 404 (no existe), 409 (vehículo no disponible / registro con dependencias).
@@ -39,7 +39,7 @@ src/app.module.ts  conexión a la base (DATABASE_URL) y módulos
 src/sucursales/    entidad, DTO, servicio y controlador
 src/vehiculos/     idem + búsqueda con disponibilidad
 src/reservas/      idem + transacción que evita reservas solapadas
-src/seed/          datos iniciales (6 sucursales, 22 vehículos)
+src/seed/          datos iniciales (6 sucursales, 42 vehículos de 16 marcas)
 test/              pruebas e2e (se ejecutan en GitHub Actions)
 render.yaml        despliegue en Render
 ```

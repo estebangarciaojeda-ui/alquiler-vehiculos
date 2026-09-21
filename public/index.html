@@ -3,18 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AutoRuta · Alquiler de vehículos en Ecuador</title>
+  <title>AutoSpot · Alquiler de vehículos en Ecuador</title>
   <meta name="description" content="Compara y reserva autos, SUV, camionetas y vans en Quito, Guayaquil, Cuenca y Manta.">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
+  <meta name="theme-color" content="#031e3e">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div id="aviso" class="aviso" role="status" hidden>El servidor gratuito se está despertando. La primera carga puede tardar hasta un minuto.</div>
 
   <header class="topbar">
-    <a class="brand" href="#inicio" aria-label="AutoRuta, ir al inicio">
-      <img src="favicon.svg" alt="" width="32" height="32">
-      <span>AutoRuta</span>
+    <a class="brand" href="#inicio" aria-label="AutoSpot, ir al inicio">
+      <img src="img/logo.webp" alt="AutoSpot" width="720" height="203">
     </a>
     <nav aria-label="Principal">
       <a href="#inicio" data-nav="inicio">Alquilar</a>
@@ -94,6 +96,10 @@
           <details class="filtros" id="filtros" open>
             <summary>Filtros</summary>
             <fieldset>
+              <legend>Marca</legend>
+              <select id="filtro-marca" aria-label="Marca"><option value="">Todas las marcas</option></select>
+            </fieldset>
+            <fieldset>
               <legend>Categoría</legend>
               <label><input type="radio" name="categoria" value="" checked> Todas</label>
               <label><input type="radio" name="categoria" value="ECONOMICO"> Económico</label>
@@ -140,7 +146,7 @@
         <span class="o">o</span>
         <label class="campo">
           <span>Código de reserva</span>
-          <input type="text" id="consulta-codigo" placeholder="AR-XXXXXX" autocapitalize="characters">
+          <input type="text" id="consulta-codigo" placeholder="AS-XXXXXX" autocapitalize="characters">
         </label>
         <button type="submit" class="btn btn-primario">Consultar</button>
       </form>
@@ -154,7 +160,7 @@
   </dialog>
 
   <footer class="pie">
-    <p>AutoRuta es un proyecto académico de ejemplo: los vehículos, precios y reservas son ficticios.</p>
+    <p>AutoSpot es un proyecto académico de ejemplo: los vehículos, precios y reservas son ficticios.</p>
     <p>
       <a href="#creditos" id="ver-creditos">Créditos de las fotos</a> ·
       <a href="/swagger" target="_blank" rel="noopener">Documentación de la API (Swagger)</a> ·

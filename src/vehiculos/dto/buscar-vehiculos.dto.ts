@@ -18,6 +18,11 @@ export class BuscarVehiculosDto {
   @IsString()
   ciudad?: string;
 
+  @ApiPropertyOptional({ description: 'Marca (exacta, sin distinguir mayúsculas)', example: 'Toyota' })
+  @IsOptional()
+  @IsString()
+  marca?: string;
+
   @ApiPropertyOptional({ enum: CATEGORIAS })
   @IsOptional()
   @IsIn(CATEGORIAS)

@@ -13,7 +13,7 @@ export function calcularDias(desde: string, hasta: string): number {
 export function generarCodigo(): string {
   let sufijo = '';
   for (let i = 0; i < 6; i++) sufijo += ALFABETO[randomInt(ALFABETO.length)];
-  return `AR-${sufijo}`;
+  return `AS-${sufijo}`;
 }
 
 export function hoyEnEcuador(): string {

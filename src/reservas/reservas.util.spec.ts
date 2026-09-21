@@ -10,7 +10,7 @@ describe('reservas.util', () => {
   it('genera códigos con el formato esperado y distintos entre sí', () => {
     const a = generarCodigo();
     const b = generarCodigo();
-    expect(a).toMatch(/^AR-[A-Z0-9]{6}$/);
+    expect(a).toMatch(/^AS-[A-Z0-9]{6}$/);
     expect(a).not.toBe(b);
   });
 

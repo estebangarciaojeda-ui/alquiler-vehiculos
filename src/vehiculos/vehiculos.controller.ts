@@ -30,6 +30,11 @@ export class VehiculosController {
     return this.service.buscar(filtros);
   }
 
+  @Get('marcas')
+  marcas() {
+    return this.service.marcas();
+  }
+
   @Get(':id')
   obtener(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);

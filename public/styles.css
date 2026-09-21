@@ -1,8 +1,8 @@
 :root {
-  --navy: #0b1f3a;
+  --navy: #031e3e;
   --azul: #1d4ed8;
   --azul-osc: #1e3a8a;
-  --ambar: #fbbf24;
+  --acento: #24d8fd;
   --fondo: #f3f6fb;
   --tarjeta: #ffffff;
   --texto: #14213d;
@@ -28,10 +28,11 @@ body {
 
 h1, h2, h3 { line-height: 1.2; margin: 0 0 8px; }
 a { color: var(--azul); }
-:focus-visible { outline: 3px solid var(--ambar); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--azul); outline-offset: 2px; }
+.topbar :focus-visible { outline-color: var(--acento); }
 
 .aviso {
-  background: var(--ambar);
+  background: var(--acento);
   color: var(--navy);
   text-align: center;
   padding: 8px 16px;
@@ -50,8 +51,8 @@ a { color: var(--azul); }
   padding: 10px 24px;
   background: var(--navy);
 }
-.brand { display: flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-weight: 800; font-size: 20px; }
-.brand img { border-radius: 8px; }
+.brand { display: flex; align-items: center; text-decoration: none; }
+.brand img { height: 42px; width: auto; display: block; }
 .topbar nav { display: flex; gap: 6px; }
 .topbar nav a { white-space: nowrap; color: #dbe7ff; text-decoration: none; padding: 8px 14px; border-radius: 999px; font-weight: 600; font-size: 15px; }
 .topbar nav a:hover { background: rgba(255, 255, 255, 0.12); }
@@ -103,8 +104,8 @@ select:hover, input:hover { border-color: #b7c4d9; }
   transition: transform 0.05s, background 0.15s;
 }
 .btn:active { transform: translateY(1px); }
-.btn-buscar { background: var(--ambar); color: var(--navy); font-size: 17px; padding-inline: 32px; }
-.btn-buscar:hover { background: #f5b100; }
+.btn-buscar { background: var(--acento); color: var(--navy); font-size: 17px; padding-inline: 32px; }
+.btn-buscar:hover { background: #0fc3ea; }
 .btn-primario { background: var(--azul); color: #fff; }
 .btn-primario:hover { background: var(--azul-osc); }
 .btn-secundario { background: #fff; color: var(--azul); border: 1.5px solid var(--azul); }
@@ -270,7 +271,7 @@ dialog::backdrop { background: rgba(11, 31, 58, 0.6); }
   .topbar { padding: 8px 12px; }
   .topbar nav a { padding: 8px 10px; font-size: 14px; }
   .topbar nav a[href="/swagger"] { display: none; }
-  .brand span { font-size: 18px; }
+  .brand img { height: 34px; }
   .auto { grid-template-columns: 1fr; }
   .auto-media--foto { aspect-ratio: 16 / 10; min-height: 0; }
   .reserva { grid-template-columns: 1fr; }

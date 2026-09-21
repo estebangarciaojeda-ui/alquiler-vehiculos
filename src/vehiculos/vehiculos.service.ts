@@ -30,6 +30,7 @@ export class VehiculosService {
 
     if (filtros.sucursalId) qb.andWhere('v.sucursalId = :sucursalId', { sucursalId: filtros.sucursalId });
     if (filtros.ciudad) qb.andWhere('s.ciudad ILIKE :ciudad', { ciudad: `%${filtros.ciudad}%` });
+    if (filtros.marca) qb.andWhere('LOWER(v.marca) = LOWER(:marca)', { marca: filtros.marca.trim() });
     if (filtros.categoria) qb.andWhere('v.categoria = :categoria', { categoria: filtros.categoria });
     if (filtros.transmision) qb.andWhere('v.transmision = :transmision', { transmision: filtros.transmision });
     if (filtros.pasajeros) qb.andWhere('v.pasajeros >= :pasajeros', { pasajeros: filtros.pasajeros });
@@ -50,6 +51,16 @@ export class VehiculosService {
 
     qb.orderBy('v.precioPorDia', filtros.orden === 'precio_desc' ? 'DESC' : 'ASC').addOrderBy('v.id', 'ASC');
     return qb.getMany();
+  }
+
+  async marcas(): Promise<string[]> {
+    const filas = await this.repo
+      .createQueryBuilder('v')
+      .select('v.marca', 'marca')
+      .distinct(true)
+      .orderBy('v.marca', 'ASC')
+      .getRawMany<{ marca: string }>();
+    return filas.map((fila) => fila.marca);
   }
 
   async findOne(id: number): Promise<Vehiculo> {

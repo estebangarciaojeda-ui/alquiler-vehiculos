@@ -143,7 +143,7 @@ const estado = {
   creditosListos: Promise.resolve(),
   sucursales: [],
   busqueda: null,
-  filtros: { categoria: '', transmision: '', pasajeros: '', precioMax: 200, orden: 'precio_asc' },
+  filtros: { marca: '', categoria: '', transmision: '', pasajeros: '', precioMax: 200, orden: 'precio_asc' },
   vehiculos: [],
   peticion: 0,
 };
@@ -238,6 +238,7 @@ async function cargarResultados() {
   const b = estado.busqueda;
   const f = estado.filtros;
   const consulta = new URLSearchParams({ sucursalId: b.sucursalId, desde: b.recogida, hasta: b.devolucion, orden: f.orden });
+  if (f.marca) consulta.set('marca', f.marca);
   if (f.categoria) consulta.set('categoria', f.categoria);
   if (f.transmision) consulta.set('transmision', f.transmision);
   if (f.pasajeros) consulta.set('pasajeros', f.pasajeros);
@@ -298,7 +299,8 @@ function pintarResultados() {
 }
 
 function limpiarFiltros() {
-  estado.filtros = { categoria: '', transmision: '', pasajeros: '', precioMax: 200, orden: estado.filtros.orden };
+  estado.filtros = { marca: '', categoria: '', transmision: '', pasajeros: '', precioMax: 200, orden: estado.filtros.orden };
+  $('#filtro-marca').value = '';
   for (const nombre of ['categoria', 'transmision', 'pasajeros']) {
     $(`input[name="${nombre}"][value=""]`).checked = true;
   }
@@ -503,6 +505,7 @@ function enlazarEventos() {
     temporizador = setTimeout(cargarResultados, 300);
   });
   $('#limpiar-filtros').addEventListener('click', limpiarFiltros);
+  $('#filtro-marca').addEventListener('change', (e) => { estado.filtros.marca = e.target.value; cargarResultados(); });
 
   document.addEventListener('click', (e) => {
     const objetivo = e.target.closest('button');
@@ -552,6 +555,11 @@ async function iniciar() {
   configurarFechas();
   enlazarEventos();
   enrutar();
+  api('/vehiculos/marcas')
+    .then((marcas) => {
+      $('#filtro-marca').insertAdjacentHTML('beforeend', marcas.map((m) => `<option value="${esc(m)}">${esc(m)}</option>`).join(''));
+    })
+    .catch(() => {});
   try {
     estado.sucursales = await api('/sucursales');
     pintarSucursales();

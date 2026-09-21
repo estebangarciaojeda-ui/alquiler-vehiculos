@@ -19,7 +19,7 @@ async function bootstrap() {
   app.useStaticAssets(join(process.cwd(), 'public'));
 
   const config = new DocumentBuilder()
-    .setTitle('AutoRuta · API de alquiler de vehículos')
+    .setTitle('AutoSpot · API de alquiler de vehículos')
     .setDescription('Sucursales, flota y reservas. Persistencia en PostgreSQL con TypeORM.')
     .setVersion('1.0')
     .build();
