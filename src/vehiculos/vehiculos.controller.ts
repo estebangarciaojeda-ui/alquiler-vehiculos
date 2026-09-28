@@ -12,9 +12,11 @@ import {
   Put,
   Query,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { AdminAuthGuard } from '../admin/admin-auth.guard.js';
 import { ActualizarPrecioDto } from './dto/actualizar-precio.dto.js';
 import { BuscarVehiculosDto } from './dto/buscar-vehiculos.dto.js';
 import { CrearVehiculoDto } from './dto/crear-vehiculo.dto.js';
@@ -41,6 +43,7 @@ export class VehiculosController {
   }
 
   @Post()
+  @UseGuards(AdminAuthGuard)
   @HttpCode(HttpStatus.CREATED)
   async crear(@Body() dto: CrearVehiculoDto, @Res({ passthrough: true }) res: Response) {
     const nuevo = await this.service.crear(dto);
@@ -49,17 +52,20 @@ export class VehiculosController {
   }
 
   @Put(':id')
+  @UseGuards(AdminAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   async reemplazar(@Param('id', ParseIntPipe) id: number, @Body() dto: CrearVehiculoDto) {
     await this.service.reemplazar(id, dto);
   }
 
   @Patch(':id')
+  @UseGuards(AdminAuthGuard)
   actualizarPrecio(@Param('id', ParseIntPipe) id: number, @Body() dto: ActualizarPrecioDto) {
     return this.service.actualizarPrecio(id, dto);
   }
 
   @Delete(':id')
+  @UseGuards(AdminAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   async eliminar(@Param('id', ParseIntPipe) id: number) {
     await this.service.eliminar(id);

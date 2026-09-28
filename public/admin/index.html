@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>AutoSpot · Panel administrativo</title>
+    <link rel="icon" href="../favicon-48.png" />
+    <link rel="stylesheet" href="admin.css" />
+  </head>
+  <body>
+    <div id="login-view" class="pantalla">
+      <form id="login-form" class="tarjeta-login">
+        <h1>AutoSpot admin</h1>
+        <p class="ayuda">Acceso restringido.</p>
+        <label>Usuario<input id="login-usuario" type="text" autocomplete="username" required /></label>
+        <label>Contraseña<input id="login-contrasena" type="password" autocomplete="current-password" required /></label>
+        <p id="login-error" class="error" hidden></p>
+        <button type="submit">Entrar</button>
+      </form>
+    </div>
+
+    <div id="panel-view" class="pantalla" hidden>
+      <header class="topbar">
+        <h1>AutoSpot · Panel administrativo</h1>
+        <button id="btn-logout" class="secundario">Cerrar sesión</button>
+      </header>
+
+      <nav class="tabs">
+        <button class="tab-btn activo" data-tab="sucursales">Sucursales</button>
+        <button class="tab-btn" data-tab="vehiculos">Vehículos</button>
+        <button class="tab-btn" data-tab="reservas">Reservas</button>
+        <button class="tab-btn" data-tab="ordenes">Órdenes (contrato Autos)</button>
+        <button class="tab-btn" data-tab="webhooks">Webhooks</button>
+      </nav>
+
+      <main>
+        <section id="tab-sucursales" class="tab-panel">
+          <div class="acciones"><button id="btn-nueva-sucursal">+ Nueva sucursal</button></div>
+          <table>
+            <thead><tr><th>ID</th><th>Nombre</th><th>Ciudad</th><th>Dirección</th><th>Aeropuerto</th><th></th></tr></thead>
+            <tbody id="tabla-sucursales"></tbody>
+          </table>
+        </section>
+
+        <section id="tab-vehiculos" class="tab-panel" hidden>
+          <div class="acciones"><button id="btn-nuevo-vehiculo">+ Nuevo vehículo</button></div>
+          <table>
+            <thead><tr><th>ID</th><th>Marca</th><th>Modelo</th><th>Año</th><th>Categoría</th><th>Precio/día</th><th>Sucursal</th><th></th></tr></thead>
+            <tbody id="tabla-vehiculos"></tbody>
+          </table>
+        </section>
+
+        <section id="tab-reservas" class="tab-panel" hidden>
+          <table>
+            <thead><tr><th>ID</th><th>Código</th><th>Cliente</th><th>Vehículo</th><th>Fechas</th><th>Estado</th><th></th></tr></thead>
+            <tbody id="tabla-reservas"></tbody>
+          </table>
+        </section>
+
+        <section id="tab-ordenes" class="tab-panel" hidden>
+          <p class="ayuda">Reservas creadas vía el contrato B2B/GDS de Autos (search → hold → preview → create).</p>
+          <table>
+            <thead><tr><th>Localizador</th><th>Estado</th><th>Vehículo</th><th>Fechas</th><th>Total</th><th>Creada</th></tr></thead>
+            <tbody id="tabla-ordenes"></tbody>
+          </table>
+        </section>
+
+        <section id="tab-webhooks" class="tab-panel" hidden>
+          <table>
+            <thead><tr><th>ID</th><th>URL</th><th>Eventos</th></tr></thead>
+            <tbody id="tabla-webhooks"></tbody>
+          </table>
+        </section>
+      </main>
+    </div>
+
+    <div id="modal-overlay" class="overlay" hidden>
+      <form id="modal-form" class="tarjeta-modal">
+        <h2 id="modal-titulo"></h2>
+        <div id="modal-campos"></div>
+        <p id="modal-error" class="error" hidden></p>
+        <div class="modal-botones">
+          <button type="button" id="modal-cancelar" class="secundario">Cancelar</button>
+          <button type="submit">Guardar</button>
+        </div>
+      </form>
+    </div>
+
+    <script src="admin.js"></script>
+  </body>
+</html>

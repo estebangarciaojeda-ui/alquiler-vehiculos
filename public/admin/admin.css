@@ -1,0 +1,115 @@
+:root {
+  --bg: #0b0d12;
+  --panel: #151822;
+  --borde: #262b3a;
+  --texto: #e7e9ee;
+  --tenue: #9aa1b2;
+  --acento: #4f7cff;
+  --peligro: #ef4444;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--texto);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+.pantalla { min-height: 100vh; }
+
+.tarjeta-login {
+  max-width: 320px;
+  margin: 15vh auto;
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tarjeta-login h1 { margin: 0; font-size: 1.3rem; }
+.ayuda { color: var(--tenue); font-size: 0.85rem; margin: 0; }
+
+label { display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; }
+
+input, select {
+  background: #0f1219;
+  border: 1px solid var(--borde);
+  color: var(--texto);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 0.95rem;
+}
+
+button {
+  background: var(--acento);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+button.secundario { background: transparent; border: 1px solid var(--borde); color: var(--texto); }
+button.peligro { background: var(--peligro); }
+button:hover { filter: brightness(1.1); }
+
+.error { color: var(--peligro); font-size: 0.85rem; margin: 0; }
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--borde);
+}
+.topbar h1 { font-size: 1.1rem; margin: 0; }
+
+.tabs { display: flex; gap: 4px; padding: 12px 28px 0; border-bottom: 1px solid var(--borde); }
+.tab-btn {
+  background: transparent;
+  color: var(--tenue);
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 10px 14px;
+}
+.tab-btn.activo { color: var(--texto); border-bottom-color: var(--acento); }
+
+main { padding: 24px 28px; }
+.acciones { margin-bottom: 14px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--borde); }
+th { color: var(--tenue); font-weight: 600; }
+td button { padding: 5px 10px; font-size: 0.8rem; margin-right: 4px; }
+
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+}
+.overlay:not([hidden]) {
+  display: flex; align-items: center; justify-content: center;
+}
+.tarjeta-modal {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 24px;
+  width: min(420px, 90vw);
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tarjeta-modal h2 { margin: 0; font-size: 1.05rem; }
+#modal-campos { display: flex; flex-direction: column; gap: 10px; }
+.modal-botones { display: flex; justify-content: flex-end; gap: 8px; }
+
+.checkbox-linea { flex-direction: row; align-items: center; gap: 8px !important; }
+.checkbox-linea input { width: auto; }

@@ -11,9 +11,11 @@ import {
   Put,
   Query,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { AdminAuthGuard } from '../admin/admin-auth.guard.js';
 import { CrearSucursalDto } from './dto/crear-sucursal.dto.js';
 import { SucursalesService } from './sucursales.service.js';
 
@@ -34,6 +36,7 @@ export class SucursalesController {
   }
 
   @Post()
+  @UseGuards(AdminAuthGuard)
   @HttpCode(HttpStatus.CREATED)
   async crear(@Body() dto: CrearSucursalDto, @Res({ passthrough: true }) res: Response) {
     const nueva = await this.service.crear(dto);
@@ -42,12 +45,14 @@ export class SucursalesController {
   }
 
   @Put(':id')
+  @UseGuards(AdminAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   async reemplazar(@Param('id', ParseIntPipe) id: number, @Body() dto: CrearSucursalDto) {
     await this.service.reemplazar(id, dto);
   }
 
   @Delete(':id')
+  @UseGuards(AdminAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   async eliminar(@Param('id', ParseIntPipe) id: number) {
     await this.service.eliminar(id);

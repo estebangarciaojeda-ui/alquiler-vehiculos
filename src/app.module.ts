@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AdminModule } from './admin/admin.module.js';
+import { GdsAutosModule } from './gds-autos/gds-autos.module.js';
 import { ReservasModule } from './reservas/reservas.module.js';
 import { SeedModule } from './seed/seed.module.js';
 import { SucursalesModule } from './sucursales/sucursales.module.js';
@@ -24,6 +26,8 @@ import { VehiculosModule } from './vehiculos/vehiculos.module.js';
     VehiculosModule,
     ReservasModule,
     SeedModule,
+    GdsAutosModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

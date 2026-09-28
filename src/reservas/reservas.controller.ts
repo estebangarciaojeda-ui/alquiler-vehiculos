@@ -11,9 +11,11 @@ import {
   Post,
   Query,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { AdminAuthGuard } from '../admin/admin-auth.guard.js';
 import { CrearReservaDto } from './dto/crear-reserva.dto.js';
 import { ReservasService } from './reservas.service.js';
 
@@ -48,6 +50,7 @@ export class ReservasController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   async eliminar(@Param('id', ParseIntPipe) id: number) {
     await this.service.eliminar(id);
