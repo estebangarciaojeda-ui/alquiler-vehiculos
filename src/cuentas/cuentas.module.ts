@@ -11,6 +11,6 @@ import { CuentasService } from './cuentas.service.js';
   imports: [TypeOrmModule.forFeature([Cuenta])],
   controllers: [CuentasController],
   providers: [CuentasService, ClienteAuthGuard],
-  exports: [ClienteAuthGuard],
+  exports: [ClienteAuthGuard, CuentasService],
 })
 export class CuentasModule {}

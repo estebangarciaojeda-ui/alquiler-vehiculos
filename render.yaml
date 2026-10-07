@@ -3,7 +3,7 @@ services:
     name: alquiler-vehiculos
     env: node
     plan: free
-    buildCommand: npm install --include=dev && npx tsc -p tsconfig.build.json
+    buildCommand: npm install --include=dev && npx tsc -p tsconfig.build.json && cd frontend-react && npm install && npm run build && cd ..
     startCommand: npm run start:prod
     envVars:
       - key: NODE_VERSION

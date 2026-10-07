@@ -1,20 +1,30 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
+import { leerBearer, verificarJwt } from '../auth-jwt/jwt.util.js';
 import { leerSesion } from '../common/sesion-firmada.util.js';
 
 export const COOKIE_ADMIN = 'admin_session';
 
+// Acepta sesión por cookie (panel admin clásico) O un JWT de rol admin
+// (frontend React). Cualquiera de las dos es suficiente.
 @Injectable()
 export class AdminAuthGuard implements CanActivate {
   constructor(private readonly config: ConfigService) {}
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
-    const secreto = this.config.get<string>('ADMIN_SESSION_SECRET') ?? '';
-    if (leerSesion(request.headers.cookie, COOKIE_ADMIN, secreto) !== 'admin') {
-      throw new UnauthorizedException('Sesión de administrador requerida');
+    const secretoSesion = this.config.get<string>('ADMIN_SESSION_SECRET') ?? '';
+    if (leerSesion(request.headers.cookie, COOKIE_ADMIN, secretoSesion) === 'admin') {
+      return true;
     }
-    return true;
+
+    const secretoJwt = this.config.get<string>('JWT_SECRET') ?? secretoSesion;
+    const payload = verificarJwt(leerBearer(request.headers.authorization), secretoJwt);
+    if (payload?.role === 'admin') {
+      return true;
+    }
+
+    throw new UnauthorizedException('Sesión de administrador requerida');
   }
 }

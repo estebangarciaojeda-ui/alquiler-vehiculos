@@ -3,8 +3,9 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { timingSafeEqual } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import type { NextFunction, Request, Response } from 'express';
+import express, { type NextFunction, type Request, type Response } from 'express';
 import { AppModule } from './app.module.js';
 
 function igual(a: string, b: string): boolean {
@@ -31,6 +32,13 @@ function protegerSwagger(usuario: string, contrasena: string) {
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // CORS: necesario para que el frontend React (servido aparte o en desarrollo
+  // en otro puerto/origen) pueda llamar a la API con credenciales (Authorization).
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -46,6 +54,17 @@ async function bootstrap() {
   }
 
   app.useStaticAssets(join(process.cwd(), 'public'));
+
+  // Frontend React (build de Vite), servido en /app. Fallback a index.html
+  // para que funcione el ruteo del lado del cliente (React Router).
+  const distReact = join(process.cwd(), 'frontend-react/dist');
+  if (existsSync(distReact)) {
+    app.use('/app', express.static(distReact));
+    app.use('/app', (req: Request, res: Response, next: NextFunction) => {
+      if (req.method !== 'GET') return next();
+      res.sendFile(join(distReact, 'index.html'));
+    });
+  }
 
   const config = new DocumentBuilder()
     .setTitle('AutoSpot · API de alquiler de vehículos')

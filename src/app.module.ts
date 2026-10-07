@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminModule } from './admin/admin.module.js';
+import { AuthJwtModule } from './auth-jwt/auth-jwt.module.js';
 import { CuentasModule } from './cuentas/cuentas.module.js';
 import { GdsAutosModule } from './gds-autos/gds-autos.module.js';
 import { ReservasModule } from './reservas/reservas.module.js';
@@ -30,6 +31,7 @@ import { VehiculosModule } from './vehiculos/vehiculos.module.js';
     GdsAutosModule,
     AdminModule,
     CuentasModule,
+    AuthJwtModule,
   ],
 })
 export class AppModule {}
