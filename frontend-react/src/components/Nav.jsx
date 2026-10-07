@@ -4,7 +4,10 @@ export default function Nav({ auth, logout }) {
   return (
     <nav className="d-flex justify-content-between align-items-center mb-4">
       <div>
-        <h1 className="h4 mb-2">AutoSpot admin (React)</h1>
+        <div className="marca-react mb-2">
+          <img src={`${import.meta.env.BASE_URL}img/logo.webp`} alt="AutoSpot" />
+          <span className="subtitulo">Panel administrativo</span>
+        </div>
         <div className="btn-group btn-group-sm">
           <NavLink to="/vehiculos" className={({ isActive }) => `btn btn-outline-primary ${isActive ? 'active' : ''}`}>
             Vehículos

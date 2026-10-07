@@ -11,7 +11,8 @@
   <body>
     <div id="login-view" class="pantalla">
       <form id="login-form" class="tarjeta-login">
-        <h1>AutoSpot admin</h1>
+        <div class="marca"><img src="../img/logo.webp" alt="AutoSpot" /></div>
+        <h1>Panel administrativo</h1>
         <p class="ayuda">Acceso restringido.</p>
         <label>Usuario<input id="login-usuario" type="text" autocomplete="username" required /></label>
         <label>Contraseña<input id="login-contrasena" type="password" autocomplete="current-password" required /></label>
@@ -22,7 +23,10 @@
 
     <div id="panel-view" class="pantalla" hidden>
       <header class="topbar">
-        <h1>AutoSpot · Panel administrativo</h1>
+        <div class="marca">
+          <img src="../img/logo.webp" alt="AutoSpot" />
+          <span class="subtitulo">Panel administrativo</span>
+        </div>
         <button id="btn-logout" class="secundario">Cerrar sesión</button>
       </header>
 

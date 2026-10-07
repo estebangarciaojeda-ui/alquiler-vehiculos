@@ -27,7 +27,10 @@ export default function Login() {
   return (
     <div className="d-flex align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
       <form onSubmit={enviar} className="card p-4 shadow-sm" style={{ width: 360 }}>
-        <h1 className="h4 mb-3">AutoSpot admin (React)</h1>
+        <div className="marca-react mb-3">
+          <img src={`${import.meta.env.BASE_URL}img/logo.webp`} alt="AutoSpot" />
+          <span className="subtitulo">Panel administrativo</span>
+        </div>
         <p className="text-muted small">Autenticación con JWT.</p>
 
         <div className="mb-3">

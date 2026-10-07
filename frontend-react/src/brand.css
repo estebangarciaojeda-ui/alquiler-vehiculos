@@ -1,0 +1,87 @@
+:root {
+  --bs-body-bg: #031e3e;
+  --bs-body-color: #eef3fb;
+  --bs-border-color: #1c4571;
+  --bs-tertiary-bg: #0c2d55;
+  --bs-secondary-bg: #0c2d55;
+  --bs-primary: #24d8fd;
+  --bs-primary-rgb: 36, 216, 253;
+  --bs-link-color: #24d8fd;
+  --bs-link-color-rgb: 36, 216, 253;
+  --bs-link-hover-color: #7ee8fe;
+  --bs-emphasis-color: #ffffff;
+}
+
+body {
+  background: radial-gradient(circle at 15% -10%, #103a65 0%, #031e3e 45%) fixed;
+  min-height: 100vh;
+}
+
+.card {
+  background: linear-gradient(180deg, #123a68 0%, #0c2d55 100%);
+  border-color: var(--bs-border-color);
+}
+
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-border-color: #1c4571;
+}
+
+.btn-primary {
+  --bs-btn-bg: #24d8fd;
+  --bs-btn-border-color: #24d8fd;
+  --bs-btn-color: #03263f;
+  --bs-btn-hover-bg: #5ce3fe;
+  --bs-btn-hover-border-color: #5ce3fe;
+  --bs-btn-hover-color: #03263f;
+  --bs-btn-active-bg: #5ce3fe;
+  --bs-btn-active-border-color: #5ce3fe;
+  --bs-btn-active-color: #03263f;
+  --bs-btn-disabled-bg: #24d8fd;
+  --bs-btn-disabled-border-color: #24d8fd;
+  font-weight: 600;
+}
+
+.btn-outline-primary {
+  --bs-btn-color: #24d8fd;
+  --bs-btn-border-color: #24d8fd;
+  --bs-btn-hover-bg: #24d8fd;
+  --bs-btn-hover-color: #03263f;
+  --bs-btn-hover-border-color: #24d8fd;
+  --bs-btn-active-bg: #24d8fd;
+  --bs-btn-active-color: #03263f;
+}
+
+.form-control {
+  background-color: rgba(3, 20, 42, 0.55);
+  border-color: var(--bs-border-color);
+  color: var(--bs-body-color);
+}
+.form-control:focus {
+  background-color: rgba(3, 20, 42, 0.7);
+  border-color: #24d8fd;
+  color: var(--bs-body-color);
+  box-shadow: 0 0 0 0.2rem rgba(36, 216, 253, 0.18);
+}
+
+.marca-react {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #031e3e;
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+.marca-react img {
+  height: 30px;
+  width: auto;
+  display: block;
+  border-radius: 4px;
+}
+.marca-react .subtitulo {
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8fa6c4;
+  font-weight: 600;
+}
