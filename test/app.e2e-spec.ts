@@ -14,6 +14,7 @@ describe('API de alquiler (e2e)', () => {
   let cookieCliente: string;
   let cookieAdmin: string;
   let cuentaPromovidaId: number | null = null;
+  let cuentaEditadaId: number | null = null;
   const creadas: number[] = [];
 
   beforeAll(async () => {
@@ -42,6 +43,11 @@ describe('API de alquiler (e2e)', () => {
 
   afterAll(async () => {
     if (cuentaPromovidaId) await dataSource.getRepository(Cuenta).update(cuentaPromovidaId, { rol: 'cliente' });
+    if (cuentaEditadaId) {
+      await dataSource
+        .getRepository(Cuenta)
+        .update(cuentaEditadaId, { nombre: 'Cliente Tres', email: 'cliente3@correo.com' });
+    }
     if (creadas.length > 0) await dataSource.getRepository(Reserva).delete(creadas);
     if (app) await app.close();
   });
@@ -125,6 +131,42 @@ describe('API de alquiler (e2e)', () => {
       .set('Cookie', cookieCliente)
       .send({ vehiculoId: 1, fechaRecogida: '2020-01-01', fechaDevolucion: '2020-01-03', nombreCliente: 'X', email: 'x@x.com', telefono: '0991234567' })
       .expect(400);
+  });
+
+  it('permite editar clientes, normaliza el correo y evita duplicados', async () => {
+    const cuentas = await request(http).get('/admin/api/cuentas').set('Cookie', cookieAdmin).expect(200);
+    const cuenta = cuentas.body.find((item: { email: string }) => item.email === 'cliente3@correo.com');
+    expect(cuenta).toBeTruthy();
+    cuentaEditadaId = cuenta.id;
+
+    await request(http)
+      .patch(`/admin/api/cuentas/${cuenta.id}`)
+      .set('Cookie', cookieAdmin)
+      .send({ nombre: 'Cliente Tres Editado', email: 'CLIENTE3.EDITADO@CORREO.COM' })
+      .expect(200)
+      .expect((res) => {
+        expect(res.body.nombre).toBe('Cliente Tres Editado');
+        expect(res.body.email).toBe('cliente3.editado@correo.com');
+        expect(res.body.contrasenaHash).toBeUndefined();
+      });
+
+    await request(http)
+      .post('/api/v1/cuentas/login')
+      .send({ email: 'cliente3.editado@correo.com', contrasena: 'cliente3' })
+      .expect(200);
+
+    await request(http)
+      .patch(`/admin/api/cuentas/${cuenta.id}`)
+      .set('Cookie', cookieAdmin)
+      .send({ nombre: 'Cliente Tres Editado', email: 'cliente2@correo.com' })
+      .expect(409);
+
+    await request(http)
+      .patch(`/admin/api/cuentas/${cuenta.id}`)
+      .set('Cookie', cookieAdmin)
+      .send({ nombre: 'Cliente Tres', email: 'cliente3@correo.com' })
+      .expect(200);
+    cuentaEditadaId = null;
   });
 
   it('permite administrar roles y revoca inmediatamente un JWT de administrador', async () => {

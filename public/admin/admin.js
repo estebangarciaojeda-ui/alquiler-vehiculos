@@ -112,10 +112,31 @@ async function cargarClientes() {
           <td>${esc(cuenta.email)}</td>
           <td><span class="rol rol-${cuenta.rol}">${cuenta.rol === 'admin' ? 'Administrador' : 'Cliente'}</span></td>
           <td>${new Date(cuenta.creadaEn).toLocaleString('es-EC')}</td>
-          <td><button data-cuenta-id="${cuenta.id}" data-nuevo-rol="${cuenta.rol === 'admin' ? 'cliente' : 'admin'}" class="${cuenta.rol === 'admin' ? 'secundario' : ''}">${cuenta.rol === 'admin' ? 'Quitar admin' : 'Dar admin'}</button></td>
+          <td><button data-editar-cuenta="${cuenta.id}" class="secundario">Editar</button><button data-cuenta-id="${cuenta.id}" data-nuevo-rol="${cuenta.rol === 'admin' ? 'cliente' : 'admin'}" class="${cuenta.rol === 'admin' ? 'secundario' : ''}">${cuenta.rol === 'admin' ? 'Quitar admin' : 'Dar admin'}</button></td>
         </tr>`,
       )
       .join('');
+
+    tbody.querySelectorAll('[data-editar-cuenta]').forEach((boton) =>
+      boton.addEventListener('click', () => {
+        const cuenta = lista.find((item) => item.id === Number(boton.dataset.editarCuenta));
+        abrirModal(
+          'Editar cliente',
+          [
+            { nombre: 'nombre', etiqueta: 'Nombre completo', requerido: true },
+            { nombre: 'email', etiqueta: 'Correo electrónico', tipo: 'email', requerido: true },
+          ],
+          cuenta,
+          async (datos) => {
+            await api(`${ADMIN_API}/cuentas/${cuenta.id}`, {
+              method: 'PATCH',
+              body: JSON.stringify(datos),
+            });
+            await cargarClientes();
+          },
+        );
+      }),
+    );
 
     tbody.querySelectorAll('[data-cuenta-id]').forEach((boton) =>
       boton.addEventListener('click', async () => {
@@ -166,7 +187,7 @@ function abrirModal(titulo, campos, valores, onGuardar) {
       const opciones = campo.opciones.map((o) => `<option value="${o}" ${valores[campo.nombre] === o ? 'selected' : ''}>${o}</option>`).join('');
       label.innerHTML = `${campo.etiqueta}<select id="campo-${campo.nombre}">${opciones}</select>`;
     } else {
-      const val = valores[campo.nombre] ?? '';
+      const val = esc(valores[campo.nombre] ?? '');
       label.innerHTML = `${campo.etiqueta}<input type="${campo.tipo || 'text'}" id="campo-${campo.nombre}" value="${val}" ${campo.requerido ? 'required' : ''} />`;
     }
     cont.appendChild(label);
