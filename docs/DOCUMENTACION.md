@@ -30,7 +30,7 @@ Monolito modular en NestJS (TypeScript) con PostgreSQL y TypeORM. Un solo servic
 | `sucursales` | Puntos de recogida y devolución. |
 | `vehiculos` | Flota, precios por día, búsqueda con filtros. |
 | `reservas` | Reserva de vehículos para clientes: disponibilidad, pago simulado y consulta. |
-| `cuentas` | Cuentas de cliente, login y sesión por cookie firmada. |
+| `cuentas` | Registro de clientes, login y sesión por cookie firmada. |
 | `pagos` | Simulación de cobro con tarjeta (validación de formato, sin cobro real). |
 | `admin` | Login del administrador, guard de sesión y vistas de órdenes y webhooks. |
 | `gds-autos` | Implementación del contrato B2B `contracts/autos-openapi.yaml` (búsqueda, hold, preview, órdenes y webhooks). |
@@ -91,10 +91,11 @@ Todas las rutas están bajo `/api/v1`, salvo las del panel. La documentación in
 | PATCH | `/reservas/{id}/cancelar` | Público |
 | DELETE | `/reservas/{id}` | Admin |
 
-### 3.2 Cuentas de cliente (3 endpoints)
+### 3.2 Cuentas de cliente (4 endpoints)
 
 | Método | Ruta | Descripción |
 |---|---|---|
+| POST | `/cuentas/registro` | Crea una cuenta con contraseña cifrada, rechaza correos duplicados e inicia la sesión. |
 | POST | `/cuentas/login` | Recibe `email` y `contrasena`; devuelve los datos de la cuenta y una cookie `cliente_session`. |
 | POST | `/cuentas/logout` | Cierra la sesión. |
 | GET | `/cuentas/yo` | Datos de la cuenta con sesión iniciada (401 si no hay sesión). |

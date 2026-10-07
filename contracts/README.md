@@ -8,6 +8,8 @@ HTTP antes de modificar el código de NestJS.
 
 - [`autos-openapi.yaml`](./autos-openapi.yaml): contrato OpenAPI 3.0.3 de la API
   B2B/GDS implementada por `src/gds-autos/`.
+- [`cuentas-openapi.yaml`](./cuentas-openapi.yaml): registro, inicio y cierre de
+  sesión de clientes, implementados por `src/cuentas/`.
 
 ## Relación con el código
 
@@ -28,4 +30,3 @@ comportamiento del backend ni de los frontends.
 2. Revisar si es compatible con los consumidores existentes.
 3. Actualizar DTO, controlador y servicio.
 4. Comprobar el contrato en Swagger y ejecutar las pruebas.
-

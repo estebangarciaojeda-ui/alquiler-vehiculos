@@ -75,7 +75,7 @@ Cliente (navegador)
 | `/api/v1/sucursales` | `GET` lista (`?ciudad=`), `GET :id`, `POST` (201), `PUT :id` (204), `DELETE :id` (204/409) — escritura requiere sesión admin (cookie o JWT) |
 | `/api/v1/vehiculos` | `GET /marcas`, `GET` con filtros, `GET :id`, `POST`, `PUT :id`, `PATCH :id` (precio), `DELETE :id` — escritura requiere sesión admin |
 | `/api/v1/reservas` | `GET` (`?email=` o `?codigo=`), `GET :id`, `POST` (requiere sesión de cliente + pago simulado), `PATCH :id/cancelar`, `DELETE :id` (admin) |
-| `/api/v1/cuentas/*` | login/logout/yo (sesión de cliente por cookie) |
+| `/api/v1/cuentas/*` | registro/login/logout/yo (cuenta de cliente y sesión por cookie) |
 
 Códigos usados: 200, 201, 204, 400, 401, 404, 409.
 

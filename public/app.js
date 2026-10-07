@@ -335,6 +335,12 @@ function abrirLogin() {
   $('#dlg-login').showModal();
 }
 
+function abrirRegistro() {
+  $('#form-registro').reset();
+  mostrarError('#error-registro', '');
+  $('#dlg-registro').showModal();
+}
+
 async function enviarLogin(evento) {
   evento.preventDefault();
   const datos = new FormData(evento.currentTarget);
@@ -348,6 +354,33 @@ async function enviarLogin(evento) {
     $('#dlg-login').close();
   } catch (error) {
     mostrarError('#error-login', error.message);
+  }
+}
+
+async function enviarRegistro(evento) {
+  evento.preventDefault();
+  const datos = new FormData(evento.currentTarget);
+  const contrasena = String(datos.get('contrasena'));
+  mostrarError('#error-registro', '');
+
+  if (contrasena !== String(datos.get('confirmacion'))) {
+    mostrarError('#error-registro', 'Las contraseñas no coinciden.');
+    return;
+  }
+
+  try {
+    cliente = await api('/cuentas/registro', {
+      method: 'POST',
+      body: JSON.stringify({
+        nombre: String(datos.get('nombre')).trim(),
+        email: String(datos.get('email')).trim(),
+        contrasena,
+      }),
+    });
+    pintarSesion();
+    $('#dlg-registro').close();
+  } catch (error) {
+    mostrarError('#error-registro', error.message);
   }
 }
 
@@ -373,7 +406,7 @@ function abrirReserva(id) {
     $('#dlg-contenido').innerHTML = `<div class="dlg">
       <div class="dlg-cab"><h2 id="dlg-titulo">Inicia sesión para reservar</h2><button type="button" class="cerrar" data-cerrar aria-label="Cerrar">&times;</button></div>
       <p>Para confirmar la reserva de <strong>${esc(v.marca)} ${esc(v.modelo)}</strong> necesitas una cuenta de cliente.</p>
-      <div class="acciones"><button type="button" class="btn btn-primario" data-abrir-login>Iniciar sesión</button></div>
+      <div class="acciones"><button type="button" class="btn btn-secundario" data-abrir-registro-desde-reserva>Crear cuenta</button><button type="button" class="btn btn-primario" data-abrir-login>Iniciar sesión</button></div>
     </div>`;
     dlg().showModal();
     return;
@@ -632,6 +665,7 @@ function enlazarEventos() {
   $('#form-busqueda').addEventListener('submit', buscar);
   $('#form-reservas').addEventListener('submit', consultarReservas);
   $('#form-login').addEventListener('submit', enviarLogin);
+  $('#form-registro').addEventListener('submit', enviarRegistro);
   $('#btn-sesion').addEventListener('click', alternarSesion);
   $('#otra-devolucion').addEventListener('change', (e) => { $('#wrap-devolucion').hidden = !e.target.checked; });
   window.addEventListener('hashchange', enrutar);
@@ -663,7 +697,11 @@ function enlazarEventos() {
     else if (objetivo.dataset.reservar) abrirReserva(Number(objetivo.dataset.reservar));
     else if (objetivo.dataset.cancelar) cancelarReserva(Number(objetivo.dataset.cancelar), objetivo.dataset.codigo);
     else if ('abrirLogin' in objetivo.dataset) { dlg().close(); abrirLogin(); }
+    else if ('abrirRegistroDesdeReserva' in objetivo.dataset) { dlg().close(); abrirRegistro(); }
+    else if ('abrirRegistro' in objetivo.dataset) { $('#dlg-login').close(); abrirRegistro(); }
+    else if ('abrirLoginDesdeRegistro' in objetivo.dataset) { $('#dlg-registro').close(); abrirLogin(); }
     else if ('cerrarLogin' in objetivo.dataset) $('#dlg-login').close();
+    else if ('cerrarRegistro' in objetivo.dataset) $('#dlg-registro').close();
     else if ('cerrar' in objetivo.dataset) dlg().close();
     else if (objetivo.dataset.verReservas !== undefined) {
       dlg().close();

@@ -176,7 +176,22 @@
       <label class="campo"><span>Contraseña</span><input type="password" name="contrasena" required autocomplete="current-password"></label>
       <p id="error-login" class="error" role="alert" hidden></p>
       <button type="submit" class="btn btn-primario">Entrar</button>
+      <p class="nota-pago">¿Aún no tienes una cuenta? <button type="button" class="enlace" data-abrir-registro>Regístrate</button></p>
       <p class="nota-pago">Cuentas de prueba: cliente1@correo.com, cliente2@correo.com y cliente3@correo.com. La contraseña es el mismo texto del usuario antes de @ (cliente1, cliente2, cliente3).</p>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-registro" aria-labelledby="dlg-registro-titulo">
+    <form id="form-registro" class="dlg form-reserva">
+      <div class="dlg-cab"><h2 id="dlg-registro-titulo">Crea tu cuenta</h2><button type="button" class="cerrar" data-cerrar-registro aria-label="Cerrar">&times;</button></div>
+      <label class="campo"><span>Nombre completo</span><input type="text" name="nombre" required minlength="2" maxlength="80" autocomplete="name"></label>
+      <label class="campo"><span>Correo electrónico</span><input type="email" name="email" required maxlength="254" autocomplete="email"></label>
+      <label class="campo"><span>Contraseña</span><input type="password" name="contrasena" required minlength="8" maxlength="128" autocomplete="new-password"></label>
+      <label class="campo"><span>Confirma la contraseña</span><input type="password" name="confirmacion" required minlength="8" maxlength="128" autocomplete="new-password"></label>
+      <p class="nota-pago">Usa al menos 8 caracteres.</p>
+      <p id="error-registro" class="error" role="alert" hidden></p>
+      <button type="submit" class="btn btn-primario">Crear cuenta</button>
+      <p class="nota-pago">¿Ya tienes una cuenta? <button type="button" class="enlace" data-abrir-login-desde-registro>Inicia sesión</button></p>
     </form>
   </dialog>
 
