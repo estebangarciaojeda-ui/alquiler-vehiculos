@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import RutaProtegida from './components/RutaProtegida.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import Login from './pages/Login.jsx';
+import Sucursales from './pages/Sucursales.jsx';
 import Vehiculos from './pages/Vehiculos.jsx';
 
 export default function App() {
@@ -14,6 +15,14 @@ export default function App() {
           element={
             <RutaProtegida>
               <Vehiculos />
+            </RutaProtegida>
+          }
+        />
+        <Route
+          path="/sucursales"
+          element={
+            <RutaProtegida>
+              <Sucursales />
             </RutaProtegida>
           }
         />

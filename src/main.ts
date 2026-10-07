@@ -1,5 +1,5 @@
 import { ValidationPipe } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { timingSafeEqual } from 'node:crypto';
@@ -7,6 +7,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { AppModule } from './app.module.js';
+import { LogErroresFilter } from './common/log-errores.filter.js';
 
 function igual(a: string, b: string): boolean {
   const bufA = Buffer.from(a);
@@ -46,6 +47,11 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  // Logging básico de errores: registra toda excepción no controlada (y los
+  // 4xx como advertencia) en el log del servidor, sin cambiar el formato de
+  // ninguna respuesta existente.
+  app.useGlobalFilters(new LogErroresFilter(app.get(HttpAdapterHost).httpAdapter));
 
   const swaggerUser = process.env.SWAGGER_USER;
   const swaggerPassword = process.env.SWAGGER_PASSWORD;

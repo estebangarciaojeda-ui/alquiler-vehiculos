@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import api from '../api.js';
+import Nav from '../components/Nav.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { validarVehiculo } from '../utils/validarVehiculo.js';
 
 const CATEGORIAS = ['ECONOMICO', 'COMPACTO', 'INTERMEDIO', 'SUV', 'CAMIONETA', 'VAN', 'LUJO'];
 const TRANSMISIONES = ['MANUAL', 'AUTOMATICA'];
@@ -78,6 +80,13 @@ export default function Vehiculos() {
   async function guardar(e) {
     e.preventDefault();
     setError('');
+
+    const errores = validarVehiculo(form);
+    if (errores.length > 0) {
+      setError(errores.join(' '));
+      return;
+    }
+
     const cuerpo = {
       ...form,
       anio: Number(form.anio),
@@ -112,17 +121,7 @@ export default function Vehiculos() {
 
   return (
     <div className="container py-4">
-      <nav className="d-flex justify-content-between align-items-center mb-4">
-        <h1 className="h4 mb-0">AutoSpot admin · Vehículos (React)</h1>
-        <div>
-          <span className="text-muted me-3">
-            {auth?.nombre} · <span className="badge bg-secondary">{auth?.role}</span>
-          </span>
-          <button className="btn btn-outline-secondary btn-sm" onClick={logout}>
-            Salir
-          </button>
-        </div>
-      </nav>
+      <Nav auth={auth} logout={logout} />
 
       {error && <div className="alert alert-danger">{error}</div>}
 
