@@ -394,7 +394,7 @@ function abrirReserva(id) {
       <fieldset class="bloque-pago">
         <legend>Pago (simulado)</legend>
         <p class="nota-pago">Simulación: no se cobra nada real. Tarjeta aprobada: <strong>4111 1111 1111 1111</strong> · Tarjeta rechazada: <strong>4000 0000 0000 0002</strong>. Usa cualquier fecha futura y un CVV de 3 dígitos.</p>
-        <label class="campo"><span>Número de tarjeta</span><input type="text" name="tarjeta" required inputmode="numeric" autocomplete="cc-number" maxlength="23" placeholder="4111 1111 1111 1111"></label>
+        <label class="campo"><span>Número de tarjeta</span><input type="text" name="tarjeta" required inputmode="numeric" autocomplete="cc-number" maxlength="19" placeholder="4111 1111 1111 1111"></label>
         <div class="fila-pago">
           <label class="campo"><span>Vencimiento (MM/AA)</span><input type="text" name="vencimiento" required pattern="(0[1-9]|1[0-2])/\\d{2}" autocomplete="cc-exp" maxlength="5" placeholder="12/30"></label>
           <label class="campo"><span>CVV</span><input type="text" name="cvv" required inputmode="numeric" pattern="\\d{3,4}" autocomplete="cc-csc" maxlength="4" placeholder="123"></label>
@@ -409,7 +409,7 @@ function abrirReserva(id) {
 
   const campoTarjeta = $('input[name="tarjeta"]', $('#form-reserva'));
   campoTarjeta.addEventListener('input', () => {
-    const digitos = campoTarjeta.value.replace(/\D/g, '').slice(0, 19);
+    const digitos = campoTarjeta.value.replace(/\D/g, '').slice(0, 16);
     campoTarjeta.value = (digitos.match(/.{1,4}/g) || []).join(' ');
   });
 
