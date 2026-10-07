@@ -1,0 +1,132 @@
+openapi: 3.0.3
+info:
+  title: AutoSpot - API de cuentas de cliente
+  version: 1.0.0
+  description: Contrato para registro y sesión de clientes del marketplace.
+servers:
+  - url: https://alquiler-vehiculos-ijx3.onrender.com/api/v1
+    description: Producción
+  - url: http://localhost:3000/api/v1
+    description: Desarrollo local
+paths:
+  /cuentas/registro:
+    post:
+      summary: Crear una cuenta de cliente e iniciar sesión
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistroCuenta'
+      responses:
+        '201':
+          description: Cuenta creada; establece la cookie cliente_session
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CuentaPublica'
+        '400':
+          description: Datos inválidos
+        '409':
+          description: El correo ya está registrado
+  /cuentas/login:
+    post:
+      summary: Iniciar sesión como cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginCuenta'
+      responses:
+        '200':
+          description: Sesión iniciada; establece la cookie cliente_session
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CuentaPublica'
+        '400':
+          description: Datos inválidos
+        '401':
+          description: Correo o contraseña incorrectos
+  /cuentas/logout:
+    post:
+      summary: Cerrar la sesión del cliente
+      responses:
+        '200':
+          description: Sesión cerrada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, example: true }
+  /cuentas/yo:
+    get:
+      summary: Consultar la cuenta con sesión iniciada
+      security:
+        - ClienteSession: []
+      responses:
+        '200':
+          description: Datos públicos de la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CuentaPublica'
+        '401':
+          description: No existe una sesión válida
+components:
+  securitySchemes:
+    ClienteSession:
+      type: apiKey
+      in: cookie
+      name: cliente_session
+  schemas:
+    RegistroCuenta:
+      type: object
+      additionalProperties: false
+      required: [nombre, email, contrasena]
+      properties:
+        nombre:
+          type: string
+          minLength: 2
+          maxLength: 80
+          example: Ana Pérez
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          example: ana@correo.com
+        contrasena:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          writeOnly: true
+    LoginCuenta:
+      type: object
+      additionalProperties: false
+      required: [email, contrasena]
+      properties:
+        email:
+          type: string
+          format: email
+        contrasena:
+          type: string
+          format: password
+          minLength: 1
+          writeOnly: true
+    CuentaPublica:
+      type: object
+      required: [id, email, nombre]
+      properties:
+        id: { type: integer }
+        email: { type: string, format: email }
+        nombre: { type: string }

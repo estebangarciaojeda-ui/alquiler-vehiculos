@@ -2,24 +2,48 @@ import { ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
+import { Cuenta } from './../src/cuentas/cuenta.entity.js';
+import { Reserva } from './../src/reservas/reserva.entity.js';
 import { AppModule } from './../src/app.module.js';
 
 describe('API de alquiler (e2e)', () => {
   let app: INestApplication;
   let http: ReturnType<INestApplication['getHttpServer']>;
+  let dataSource: DataSource;
+  let cookieCliente: string;
+  let cookieAdmin: string;
+  let cuentaPromovidaId: number | null = null;
   const creadas: number[] = [];
 
   beforeAll(async () => {
+    process.env.ADMIN_USER = 'admin-e2e';
+    process.env.ADMIN_PASSWORD = 'admin-e2e-seguro';
+    process.env.ADMIN_SESSION_SECRET = 'secreto-e2e-de-al-menos-32-caracteres';
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();
     http = app.getHttpServer();
+    dataSource = moduleRef.get(DataSource);
+
+    const login = await request(http)
+      .post('/api/v1/cuentas/login')
+      .send({ email: 'cliente1@correo.com', contrasena: 'cliente1' })
+      .expect(200);
+    cookieCliente = login.headers['set-cookie'][0];
+
+    const loginAdmin = await request(http)
+      .post('/admin/api/login')
+      .send({ usuario: 'admin-e2e', contrasena: 'admin-e2e-seguro' })
+      .expect(200);
+    cookieAdmin = loginAdmin.headers['set-cookie'][0];
   });
 
   afterAll(async () => {
-    for (const id of creadas) await request(http).delete(`/api/v1/reservas/${id}`);
-    await app.close();
+    if (cuentaPromovidaId) await dataSource.getRepository(Cuenta).update(cuentaPromovidaId, { rol: 'cliente' });
+    if (creadas.length > 0) await dataSource.getRepository(Reserva).delete(creadas);
+    if (app) await app.close();
   });
 
   it('lista las sucursales cargadas por el seed', async () => {
@@ -62,9 +86,10 @@ describe('API de alquiler (e2e)', () => {
       nombreCliente: 'Cliente de prueba',
       email: 'Prueba@Correo.com',
       telefono: '0991234567',
+      pago: { numero: '4111111111111111', vencimiento: '12/30', cvv: '123' },
     };
 
-    const creada = await request(http).post('/api/v1/reservas').send(base).expect(201);
+    const creada = await request(http).post('/api/v1/reservas').set('Cookie', cookieCliente).send(base).expect(201);
     creadas.push(creada.body.id);
     expect(creada.headers.location).toBe(`/api/v1/reservas/${creada.body.id}`);
     expect(creada.body.dias).toBe(3);
@@ -79,23 +104,59 @@ describe('API de alquiler (e2e)', () => {
 
     await request(http)
       .post('/api/v1/reservas')
+      .set('Cookie', cookieCliente)
       .send({ ...base, fechaRecogida: '2030-05-12', fechaDevolucion: '2030-05-15' })
       .expect(409);
 
     await request(http).patch(`/api/v1/reservas/${creada.body.id}/cancelar`).expect(200);
 
-    const otra = await request(http).post('/api/v1/reservas').send(base).expect(201);
+    const otra = await request(http).post('/api/v1/reservas').set('Cookie', cookieCliente).send(base).expect(201);
     creadas.push(otra.body.id);
   });
 
   it('valida los datos de la reserva', async () => {
     await request(http)
       .post('/api/v1/reservas')
+      .set('Cookie', cookieCliente)
       .send({ vehiculoId: 1, fechaRecogida: '2030-05-10', fechaDevolucion: '2030-05-09', nombreCliente: 'X', email: 'no-es-correo', telefono: '0991234567' })
       .expect(400);
     await request(http)
       .post('/api/v1/reservas')
+      .set('Cookie', cookieCliente)
       .send({ vehiculoId: 1, fechaRecogida: '2020-01-01', fechaDevolucion: '2020-01-03', nombreCliente: 'X', email: 'x@x.com', telefono: '0991234567' })
       .expect(400);
+  });
+
+  it('permite administrar roles y revoca inmediatamente un JWT de administrador', async () => {
+    const cuentas = await request(http).get('/admin/api/cuentas').set('Cookie', cookieAdmin).expect(200);
+    const cuenta = cuentas.body.find((item: { email: string }) => item.email === 'cliente2@correo.com');
+    expect(cuenta).toBeTruthy();
+    expect(cuenta.rol).toBe('cliente');
+    cuentaPromovidaId = cuenta.id;
+
+    await request(http)
+      .patch(`/admin/api/cuentas/${cuenta.id}/rol`)
+      .set('Cookie', cookieAdmin)
+      .send({ rol: 'admin' })
+      .expect(200)
+      .expect((res) => expect(res.body.rol).toBe('admin'));
+
+    const loginPromovido = await request(http)
+      .post('/api/v1/auth/login')
+      .send({ identificador: 'cliente2@correo.com', contrasena: 'cliente2' })
+      .expect(200);
+    expect(loginPromovido.body.role).toBe('admin');
+    const token = loginPromovido.body.accessToken;
+
+    await request(http).get('/admin/api/cuentas').set('Authorization', `Bearer ${token}`).expect(200);
+
+    await request(http)
+      .patch(`/admin/api/cuentas/${cuenta.id}/rol`)
+      .set('Cookie', cookieAdmin)
+      .send({ rol: 'cliente' })
+      .expect(200);
+    cuentaPromovidaId = null;
+
+    await request(http).get('/admin/api/cuentas').set('Authorization', `Bearer ${token}`).expect(401);
   });
 });

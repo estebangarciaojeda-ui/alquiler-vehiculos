@@ -6,6 +6,8 @@ const TRANSMISIONES = ['MANUAL', 'AUTOMATICA'];
 const COMBUSTIBLES = ['GASOLINA', 'DIESEL', 'HIBRIDO', 'ELECTRICO'];
 
 const el = (id) => document.getElementById(id);
+const esc = (valor) =>
+  String(valor ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 async function api(ruta, opciones = {}) {
   const res = await fetch(ruta, {
@@ -82,9 +84,68 @@ function cargarTodo() {
   cargarSucursales();
   cargarVehiculos();
   cargarReservas();
+  cargarClientes();
   cargarOrdenes();
   cargarWebhooks();
 }
+
+// ── Clientes y roles ─────────────────────────────────────────────────
+
+async function cargarClientes() {
+  const tbody = el('tabla-clientes');
+  const error = el('clientes-error');
+  error.hidden = true;
+  tbody.innerHTML = '<tr><td colspan="6" class="vacio">Cargando…</td></tr>';
+
+  try {
+    const lista = await api(`${ADMIN_API}/cuentas`);
+    if (lista.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="vacio">Todavía no hay clientes registrados.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = lista
+      .map(
+        (cuenta) => `<tr>
+          <td>${cuenta.id}</td>
+          <td>${esc(cuenta.nombre)}</td>
+          <td>${esc(cuenta.email)}</td>
+          <td><span class="rol rol-${cuenta.rol}">${cuenta.rol === 'admin' ? 'Administrador' : 'Cliente'}</span></td>
+          <td>${new Date(cuenta.creadaEn).toLocaleString('es-EC')}</td>
+          <td><button data-cuenta-id="${cuenta.id}" data-nuevo-rol="${cuenta.rol === 'admin' ? 'cliente' : 'admin'}" class="${cuenta.rol === 'admin' ? 'secundario' : ''}">${cuenta.rol === 'admin' ? 'Quitar admin' : 'Dar admin'}</button></td>
+        </tr>`,
+      )
+      .join('');
+
+    tbody.querySelectorAll('[data-cuenta-id]').forEach((boton) =>
+      boton.addEventListener('click', async () => {
+        const cuenta = lista.find((item) => item.id === Number(boton.dataset.cuentaId));
+        const nuevoRol = boton.dataset.nuevoRol;
+        const accion = nuevoRol === 'admin' ? 'dar privilegios de administrador a' : 'quitar los privilegios de administrador a';
+        if (!confirm(`¿Confirmas que deseas ${accion} ${cuenta.nombre} (${cuenta.email})?`)) return;
+
+        boton.disabled = true;
+        try {
+          await api(`${ADMIN_API}/cuentas/${cuenta.id}/rol`, {
+            method: 'PATCH',
+            body: JSON.stringify({ rol: nuevoRol }),
+          });
+          await cargarClientes();
+        } catch (err) {
+          error.textContent = err.message;
+          error.hidden = false;
+          boton.disabled = false;
+        }
+      }),
+    );
+  } catch (err) {
+    tbody.innerHTML = '';
+    error.textContent = err.message;
+    error.hidden = false;
+  }
+}
+
+el('btn-recargar-clientes').addEventListener('click', cargarClientes);
 
 // ── Modal genérico ────────────────────────────────────────────────────
 

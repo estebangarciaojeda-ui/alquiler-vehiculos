@@ -38,7 +38,7 @@ Cliente (navegador)
 |---|---|
 | **JWT** (HS256, implementación propia sin dependencias) | `src/auth-jwt/`. Login en `POST /api/v1/auth/login`, admite usuario admin o cuenta de cliente, devuelve `accessToken` con rol (`admin`/`cliente`) y expiración. |
 | **CORS** | `app.enableCors()` en `src/main.ts`. |
-| **Autorización por roles** | `AdminAuthGuard` acepta cookie de sesión (panel clásico) **o** JWT de rol `admin` (React) — mismas rutas, dos formas de probar la identidad. `ClienteAuthGuard` exige sesión de cliente para reservar. |
+| **Autorización por roles** | `AdminAuthGuard` acepta la cookie del administrador principal o un JWT de una cuenta cuyo rol actual sea `admin`. El rol se comprueba en base de datos para que una revocación sea inmediata. `ClienteAuthGuard` exige sesión de cliente para reservar. |
 | **Hash de contraseñas** | `scrypt` + sal aleatoria (`src/cuentas/password.util.ts`), nunca texto plano. |
 | **Validación y sanitización de entradas** | `class-validator` + `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })` en todos los DTOs: rechaza campos no declarados y tipos inválidos. |
 | **Inyección SQL** | Mitigada por diseño: TypeORM parametriza todas las consultas; no hay concatenación de SQL con datos del usuario. |
@@ -63,7 +63,7 @@ Cliente (navegador)
 ## 4. Qué hace la aplicación
 
 1. **Storefront**: buscar vehículos disponibles por sucursal/fechas, reservar con pago simulado, consultar/cancelar reservas.
-2. **Panel admin clásico** (`/admin`, cookie): CRUD de sucursales, vehículos y reservas.
+2. **Panel admin clásico** (`/admin`, cookie): CRUD de sucursales, vehículos y reservas; listado de clientes y gestión de roles.
 3. **Panel admin en React** (`/app`, JWT): login y CRUD de vehículos consumiendo la misma API REST.
 4. **Contrato B2B/GDS** (`/api/v1/search`, `/orders/*`, `/webhooks`, ver Swagger): integración con sistemas externos de distribución.
 
@@ -75,7 +75,7 @@ Cliente (navegador)
 | `/api/v1/sucursales` | `GET` lista (`?ciudad=`), `GET :id`, `POST` (201), `PUT :id` (204), `DELETE :id` (204/409) — escritura requiere sesión admin (cookie o JWT) |
 | `/api/v1/vehiculos` | `GET /marcas`, `GET` con filtros, `GET :id`, `POST`, `PUT :id`, `PATCH :id` (precio), `DELETE :id` — escritura requiere sesión admin |
 | `/api/v1/reservas` | `GET` (`?email=` o `?codigo=`), `GET :id`, `POST` (requiere sesión de cliente + pago simulado), `PATCH :id/cancelar`, `DELETE :id` (admin) |
-| `/api/v1/cuentas/*` | login/logout/yo (sesión de cliente por cookie) |
+| `/api/v1/cuentas/*` | registro/login/logout/yo (cuenta de cliente y sesión por cookie) |
 
 Códigos usados: 200, 201, 204, 400, 401, 404, 409.
 

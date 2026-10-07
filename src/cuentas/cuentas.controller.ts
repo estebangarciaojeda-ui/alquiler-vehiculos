@@ -6,6 +6,7 @@ import { cookieDeCierre, crearCookieSesion } from '../common/sesion-firmada.util
 import { ClienteAuthGuard, COOKIE_CLIENTE, type PeticionCliente } from './cliente-auth.guard.js';
 import { CuentasService } from './cuentas.service.js';
 import { LoginCuentaDto } from './dto/login-cuenta.dto.js';
+import { RegistroCuentaDto } from './dto/registro-cuenta.dto.js';
 
 const DURACION_SESION_MS = 8 * 60 * 60 * 1000;
 
@@ -17,6 +18,21 @@ export class CuentasController {
     private readonly config: ConfigService,
   ) {}
 
+  private iniciarSesion(res: Response, cuentaId: number): void {
+    const secreto = this.config.get<string>('ADMIN_SESSION_SECRET') ?? '';
+    res.setHeader('Set-Cookie', crearCookieSesion(COOKIE_CLIENTE, secreto, String(cuentaId), DURACION_SESION_MS));
+  }
+
+  @Post('registro')
+  @ApiOperation({ summary: 'Crear una cuenta de cliente e iniciar sesión' })
+  @ApiResponse({ status: 201, description: 'Cuenta creada' })
+  @ApiResponse({ status: 409, description: 'El correo ya está registrado' })
+  async registro(@Body() dto: RegistroCuentaDto, @Res({ passthrough: true }) res: Response) {
+    const cuenta = await this.cuentas.registrar(dto.nombre, dto.email, dto.contrasena);
+    this.iniciarSesion(res, cuenta.id);
+    return { id: cuenta.id, email: cuenta.email, nombre: cuenta.nombre };
+  }
+
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Iniciar sesión como cliente (crea una cookie de sesión)' })
@@ -25,8 +41,7 @@ export class CuentasController {
     const cuenta = await this.cuentas.validarLogin(dto.email, dto.contrasena);
     if (!cuenta) throw new UnauthorizedException('Correo o contraseña incorrectos');
 
-    const secreto = this.config.get<string>('ADMIN_SESSION_SECRET') ?? '';
-    res.setHeader('Set-Cookie', crearCookieSesion(COOKIE_CLIENTE, secreto, String(cuenta.id), DURACION_SESION_MS));
+    this.iniciarSesion(res, cuenta.id);
     return { id: cuenta.id, email: cuenta.email, nombre: cuenta.nombre };
   }
 

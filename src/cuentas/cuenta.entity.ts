@@ -1,5 +1,8 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
+export const ROLES_CUENTA = ['cliente', 'admin'] as const;
+export type RolCuenta = (typeof ROLES_CUENTA)[number];
+
 @Entity('cuentas')
 export class Cuenta {
   @PrimaryGeneratedColumn()
@@ -13,6 +16,9 @@ export class Cuenta {
 
   @Column('varchar')
   passwordHash: string;
+
+  @Column('varchar', { default: 'cliente' })
+  rol: RolCuenta;
 
   @CreateDateColumn()
   creadaEn: Date;

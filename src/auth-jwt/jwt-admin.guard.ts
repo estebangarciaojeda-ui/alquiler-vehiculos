@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
+import { CuentasService } from '../cuentas/cuentas.service.js';
 import { leerBearer, verificarJwt } from './jwt.util.js';
 
 // Guard independiente para las rutas que consume el frontend React (JWT puro,
@@ -8,9 +9,12 @@ import { leerBearer, verificarJwt } from './jwt.util.js';
 // JWT como alternativa, para no duplicar endpoints.
 @Injectable()
 export class JwtAdminGuard implements CanActivate {
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly cuentas: CuentasService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const secreto = this.config.get<string>('JWT_SECRET') ?? this.config.get<string>('ADMIN_SESSION_SECRET') ?? '';
     const token = leerBearer(request.headers.authorization);
@@ -18,6 +22,11 @@ export class JwtAdminGuard implements CanActivate {
     if (!payload || payload.role !== 'admin') {
       throw new UnauthorizedException('Token JWT de administrador requerido');
     }
-    return true;
+    if (payload.sub === 'admin') return true;
+    if (/^\d+$/.test(payload.sub)) {
+      const cuenta = await this.cuentas.buscarPorId(Number(payload.sub));
+      if (cuenta?.rol === 'admin') return true;
+    }
+    throw new UnauthorizedException('La cuenta ya no tiene privilegios de administrador');
   }
 }

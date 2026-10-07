@@ -30,6 +30,7 @@
         <button class="tab-btn activo" data-tab="sucursales">Sucursales</button>
         <button class="tab-btn" data-tab="vehiculos">Vehículos</button>
         <button class="tab-btn" data-tab="reservas">Reservas</button>
+        <button class="tab-btn" data-tab="clientes">Clientes</button>
         <button class="tab-btn" data-tab="ordenes">Órdenes (contrato Autos)</button>
         <button class="tab-btn" data-tab="webhooks">Webhooks</button>
       </nav>
@@ -55,6 +56,21 @@
           <table>
             <thead><tr><th>ID</th><th>Código</th><th>Cliente</th><th>Vehículo</th><th>Fechas</th><th>Estado</th><th></th></tr></thead>
             <tbody id="tabla-reservas"></tbody>
+          </table>
+        </section>
+
+        <section id="tab-clientes" class="tab-panel" hidden>
+          <div class="seccion-cabecera">
+            <div>
+              <h2>Clientes registrados</h2>
+              <p class="ayuda">Los administradores pueden entrar al panel React con su correo y contraseña. Revocar el rol invalida su acceso administrativo.</p>
+            </div>
+            <button id="btn-recargar-clientes" class="secundario">Actualizar</button>
+          </div>
+          <p id="clientes-error" class="error" hidden></p>
+          <table>
+            <thead><tr><th>ID</th><th>Nombre</th><th>Correo</th><th>Rol</th><th>Registro</th><th></th></tr></thead>
+            <tbody id="tabla-clientes"></tbody>
           </table>
         </section>
 

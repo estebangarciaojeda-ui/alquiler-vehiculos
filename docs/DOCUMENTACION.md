@@ -30,7 +30,7 @@ Monolito modular en NestJS (TypeScript) con PostgreSQL y TypeORM. Un solo servic
 | `sucursales` | Puntos de recogida y devolución. |
 | `vehiculos` | Flota, precios por día, búsqueda con filtros. |
 | `reservas` | Reserva de vehículos para clientes: disponibilidad, pago simulado y consulta. |
-| `cuentas` | Cuentas de cliente, login y sesión por cookie firmada. |
+| `cuentas` | Registro de clientes, login y sesión por cookie firmada. |
 | `pagos` | Simulación de cobro con tarjeta (validación de formato, sin cobro real). |
 | `admin` | Login del administrador, guard de sesión y vistas de órdenes y webhooks. |
 | `gds-autos` | Implementación del contrato B2B `contracts/autos-openapi.yaml` (búsqueda, hold, preview, órdenes y webhooks). |
@@ -61,7 +61,7 @@ gds_webhooks            gds_idempotencia (clave → respuesta)
 | `sucursales` | id, nombre, ciudad, direccion, esAeropuerto |
 | `vehiculos` | id, marca, modelo, anio, categoria, transmision, pasajeros, maletas, puertas, combustible, aireAcondicionado, precioPorDia, sucursalId |
 | `reservas` | id, codigo (único), vehiculoId, sucursalRecogidaId, sucursalDevolucionId, fechaRecogida, horaRecogida, fechaDevolucion, horaDevolucion, nombreCliente, email, telefono, dias, total, estado (`CONFIRMADA`/`CANCELADA`), cuentaId, pagoReferencia, tarjetaUltimos4, creadaEn |
-| `cuentas` | id, email (único), nombre, passwordHash, creadaEn |
+| `cuentas` | id, email (único), nombre, passwordHash, rol (`cliente`/`admin`), creadaEn |
 | `gds_holds` | id, vehiculoId, searchToken, fechas, expiresAt |
 | `gds_previews` | id, vehiculoId, holdId, extras, fechas, ruta, moneda, precioTotal, desglose, consumida |
 | `gds_orders` | id, locator (único), estado, vehiculoId, vehiculoSnapshot, fechas, ruta, extras, precioTotal, moneda, driverDetails, paymentReference |
@@ -91,13 +91,19 @@ Todas las rutas están bajo `/api/v1`, salvo las del panel. La documentación in
 | PATCH | `/reservas/{id}/cancelar` | Público |
 | DELETE | `/reservas/{id}` | Admin |
 
-### 3.2 Cuentas de cliente (3 endpoints)
+### 3.2 Cuentas de cliente (4 endpoints)
 
 | Método | Ruta | Descripción |
 |---|---|---|
+| POST | `/cuentas/registro` | Crea una cuenta con contraseña cifrada, rechaza correos duplicados e inicia la sesión. |
 | POST | `/cuentas/login` | Recibe `email` y `contrasena`; devuelve los datos de la cuenta y una cookie `cliente_session`. |
 | POST | `/cuentas/logout` | Cierra la sesión. |
 | GET | `/cuentas/yo` | Datos de la cuenta con sesión iniciada (401 si no hay sesión). |
+
+El panel clásico expone, solo para administradores autenticados, `GET /admin/api/cuentas`
+y `PATCH /admin/api/cuentas/:id/rol`. La promoción permite usar la cuenta en el
+panel React; la revocación se comprueba contra la base de datos y bloquea de
+inmediato los JWT administrativos emitidos para esa cuenta.
 
 ### 3.3 Contrato B2B Autos (15 endpoints)
 
