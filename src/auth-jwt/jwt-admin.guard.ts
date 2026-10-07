@@ -1,9 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
 import type { Request } from 'express';
-import { Repository } from 'typeorm';
-import { Cuenta } from '../cuentas/cuenta.entity.js';
+import { CuentasService } from '../cuentas/cuentas.service.js';
 import { leerBearer, verificarJwt } from './jwt.util.js';
 
 // Guard independiente para las rutas que consume el frontend React (JWT puro,
@@ -13,7 +11,7 @@ import { leerBearer, verificarJwt } from './jwt.util.js';
 export class JwtAdminGuard implements CanActivate {
   constructor(
     private readonly config: ConfigService,
-    @InjectRepository(Cuenta) private readonly cuentas: Repository<Cuenta>,
+    private readonly cuentas: CuentasService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -26,7 +24,7 @@ export class JwtAdminGuard implements CanActivate {
     }
     if (payload.sub === 'admin') return true;
     if (/^\d+$/.test(payload.sub)) {
-      const cuenta = await this.cuentas.findOne({ where: { id: Number(payload.sub) }, select: { id: true, rol: true } });
+      const cuenta = await this.cuentas.buscarPorId(Number(payload.sub));
       if (cuenta?.rol === 'admin') return true;
     }
     throw new UnauthorizedException('La cuenta ya no tiene privilegios de administrador');

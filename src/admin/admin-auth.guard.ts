@@ -1,11 +1,9 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
 import type { Request } from 'express';
-import { Repository } from 'typeorm';
 import { leerBearer, verificarJwt } from '../auth-jwt/jwt.util.js';
 import { leerSesion } from '../common/sesion-firmada.util.js';
-import { Cuenta } from '../cuentas/cuenta.entity.js';
+import { CuentasService } from '../cuentas/cuentas.service.js';
 
 export const COOKIE_ADMIN = 'admin_session';
 
@@ -15,7 +13,7 @@ export const COOKIE_ADMIN = 'admin_session';
 export class AdminAuthGuard implements CanActivate {
   constructor(
     private readonly config: ConfigService,
-    @InjectRepository(Cuenta) private readonly cuentas: Repository<Cuenta>,
+    private readonly cuentas: CuentasService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -30,7 +28,7 @@ export class AdminAuthGuard implements CanActivate {
     if (payload?.role === 'admin') {
       if (payload.sub === 'admin') return true;
       if (/^\d+$/.test(payload.sub)) {
-        const cuenta = await this.cuentas.findOne({ where: { id: Number(payload.sub) }, select: { id: true, rol: true } });
+        const cuenta = await this.cuentas.buscarPorId(Number(payload.sub));
         if (cuenta?.rol === 'admin') return true;
       }
     }

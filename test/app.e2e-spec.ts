@@ -43,7 +43,7 @@ describe('API de alquiler (e2e)', () => {
   afterAll(async () => {
     if (cuentaPromovidaId) await dataSource.getRepository(Cuenta).update(cuentaPromovidaId, { rol: 'cliente' });
     if (creadas.length > 0) await dataSource.getRepository(Reserva).delete(creadas);
-    await app.close();
+    if (app) await app.close();
   });
 
   it('lista las sucursales cargadas por el seed', async () => {
