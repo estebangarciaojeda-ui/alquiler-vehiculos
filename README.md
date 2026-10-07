@@ -63,7 +63,7 @@ Cliente (navegador)
 ## 4. Qué hace la aplicación
 
 1. **Storefront**: buscar vehículos disponibles por sucursal/fechas, reservar con pago simulado, consultar/cancelar reservas.
-2. **Panel admin clásico** (`/admin`, cookie): CRUD de sucursales, vehículos y reservas; listado de clientes y gestión de roles.
+2. **Panel admin clásico** (`/admin`, cookie): CRUD de sucursales, vehículos y reservas; listado, edición y gestión de roles de clientes.
 3. **Panel admin en React** (`/app`, JWT): login y CRUD de vehículos consumiendo la misma API REST.
 4. **Contrato B2B/GDS** (`/api/v1/search`, `/orders/*`, `/webhooks`, ver Swagger): integración con sistemas externos de distribución.
 

@@ -100,8 +100,9 @@ Todas las rutas están bajo `/api/v1`, salvo las del panel. La documentación in
 | POST | `/cuentas/logout` | Cierra la sesión. |
 | GET | `/cuentas/yo` | Datos de la cuenta con sesión iniciada (401 si no hay sesión). |
 
-El panel clásico expone, solo para administradores autenticados, `GET /admin/api/cuentas`
-y `PATCH /admin/api/cuentas/:id/rol`. La promoción permite usar la cuenta en el
+El panel clásico expone, solo para administradores autenticados, `GET /admin/api/cuentas`,
+`PATCH /admin/api/cuentas/:id` y `PATCH /admin/api/cuentas/:id/rol`. La edición
+permite actualizar nombre y correo, pero nunca leer ni reemplazar contraseñas. La promoción permite usar la cuenta en el
 panel React; la revocación se comprueba contra la base de datos y bloquea de
 inmediato los JWT administrativos emitidos para esa cuenta.
 
