@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsInt, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEmail, IsInt, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, Min, ValidateNested } from 'class-validator';
+import { PagoTarjetaDto } from '../../pagos/dto/pago-tarjeta.dto.js';
 
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -48,4 +50,9 @@ export class CrearReservaDto {
   @IsString()
   @Matches(/^[0-9+\-\s()]{7,20}$/, { message: 'telefono no es válido' })
   telefono: string;
+
+  @ApiProperty({ type: PagoTarjetaDto, description: 'Datos de tarjeta para el pago simulado (no se cobra nada real)' })
+  @ValidateNested()
+  @Type(() => PagoTarjetaDto)
+  pago: PagoTarjetaDto;
 }

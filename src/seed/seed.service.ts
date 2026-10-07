@@ -1,8 +1,17 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Cuenta } from '../cuentas/cuenta.entity.js';
+import { hashContrasena } from '../cuentas/password.util.js';
 import { Sucursal } from '../sucursales/sucursal.entity.js';
 import { Vehiculo } from '../vehiculos/vehiculo.entity.js';
+
+// Cuentas de demostración para probar el flujo de reserva y la validación de disponibilidad.
+const CUENTAS_DEMO = [
+  { email: 'cliente1@correo.com', nombre: 'Cliente Uno', contrasena: 'cliente1' },
+  { email: 'cliente2@correo.com', nombre: 'Cliente Dos', contrasena: 'cliente2' },
+  { email: 'cliente3@correo.com', nombre: 'Cliente Tres', contrasena: 'cliente3' },
+];
 
 type Datos = Omit<Vehiculo, 'id' | 'sucursal' | 'sucursalId'>;
 
@@ -95,9 +104,13 @@ export class SeedService implements OnApplicationBootstrap {
   constructor(
     @InjectRepository(Sucursal) private readonly sucursales: Repository<Sucursal>,
     @InjectRepository(Vehiculo) private readonly vehiculos: Repository<Vehiculo>,
+    @InjectRepository(Cuenta) private readonly cuentas: Repository<Cuenta>,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
+    await this.sembrarCuentas();
+
+
     const porNombre = new Map((await this.sucursales.find()).map((s) => [s.nombre, s]));
     for (const datos of SUCURSALES) {
       if (!porNombre.has(datos.nombre)) {
@@ -114,6 +127,17 @@ export class SeedService implements OnApplicationBootstrap {
     if (nuevos.length > 0) {
       await this.vehiculos.save(nuevos);
       this.logger.log(`Flota base: se agregaron ${nuevos.length} vehículos`);
+    }
+  }
+
+  private async sembrarCuentas(): Promise<void> {
+    const existentes = new Set((await this.cuentas.find()).map((c) => c.email));
+    for (const demo of CUENTAS_DEMO) {
+      if (existentes.has(demo.email)) continue;
+      await this.cuentas.save(
+        this.cuentas.create({ email: demo.email, nombre: demo.nombre, passwordHash: await hashContrasena(demo.contrasena) }),
+      );
+      this.logger.log(`Cuenta de demostración creada: ${demo.email}`);
     }
   }
 }

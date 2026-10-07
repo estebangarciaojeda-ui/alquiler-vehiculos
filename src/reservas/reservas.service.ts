@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { PagosService } from '../pagos/pagos.service.js';
 import { Sucursal } from '../sucursales/sucursal.entity.js';
 import { Vehiculo } from '../vehiculos/vehiculo.entity.js';
 import { CrearReservaDto } from './dto/crear-reserva.dto.js';
@@ -13,6 +14,7 @@ export class ReservasService {
     @InjectRepository(Reserva)
     private readonly repo: Repository<Reserva>,
     private readonly dataSource: DataSource,
+    private readonly pagos: PagosService,
   ) {}
 
   listar(email?: string, codigo?: string): Promise<Reserva[]> {
@@ -28,7 +30,7 @@ export class ReservasService {
     return reserva;
   }
 
-  async crear(dto: CrearReservaDto): Promise<Reserva> {
+  async crear(dto: CrearReservaDto, cuentaId: number): Promise<Reserva> {
     if (dto.fechaRecogida < hoyEnEcuador()) {
       throw new BadRequestException('La fecha de recogida no puede estar en el pasado');
     }
@@ -63,6 +65,9 @@ export class ReservasService {
         throw new ConflictException('El vehículo no está disponible en esas fechas');
       }
 
+      const total = Math.round(dias * vehiculo.precioPorDia * 100) / 100;
+      const cobro = this.pagos.simularCobro(dto.pago);
+
       const nueva = manager.create(Reserva, {
         codigo: generarCodigo(),
         vehiculoId: vehiculo.id,
@@ -76,8 +81,11 @@ export class ReservasService {
         email: dto.email.trim().toLowerCase(),
         telefono: dto.telefono.trim(),
         dias,
-        total: Math.round(dias * vehiculo.precioPorDia * 100) / 100,
+        total,
         estado: 'CONFIRMADA',
+        cuentaId,
+        pagoReferencia: cobro.referencia,
+        tarjetaUltimos4: cobro.tarjetaUltimos4,
       });
       const guardada = await manager.save(nueva);
       return guardada.id;

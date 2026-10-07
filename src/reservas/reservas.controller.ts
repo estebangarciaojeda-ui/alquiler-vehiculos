@@ -10,12 +10,14 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AdminAuthGuard } from '../admin/admin-auth.guard.js';
+import { ClienteAuthGuard, type PeticionCliente } from '../cuentas/cliente-auth.guard.js';
 import { CrearReservaDto } from './dto/crear-reserva.dto.js';
 import { ReservasService } from './reservas.service.js';
 
@@ -37,9 +39,13 @@ export class ReservasController {
   }
 
   @Post()
+  @UseGuards(ClienteAuthGuard)
   @HttpCode(HttpStatus.CREATED)
-  async crear(@Body() dto: CrearReservaDto, @Res({ passthrough: true }) res: Response) {
-    const nueva = await this.service.crear(dto);
+  @ApiOperation({ summary: 'Reservar un vehículo con pago simulado (requiere sesión de cliente)' })
+  @ApiResponse({ status: 401, description: 'Inicia sesión para reservar' })
+  @ApiResponse({ status: 409, description: 'El vehículo ya está reservado en esas fechas' })
+  async crear(@Body() dto: CrearReservaDto, @Req() req: PeticionCliente, @Res({ passthrough: true }) res: Response) {
+    const nueva = await this.service.crear(dto, req.clienteId!);
     res.setHeader('Location', `/api/v1/reservas/${nueva.id}`);
     return nueva;
   }

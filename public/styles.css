@@ -57,6 +57,12 @@ a { color: var(--azul); }
 .topbar nav a { white-space: nowrap; color: #dbe7ff; text-decoration: none; padding: 8px 14px; border-radius: 999px; font-weight: 600; font-size: 15px; }
 .topbar nav a:hover { background: rgba(255, 255, 255, 0.12); }
 .topbar nav a[aria-current="page"] { background: #fff; color: var(--navy); }
+.topbar nav .sesion { white-space: nowrap; background: none; border: 0; color: #dbe7ff; padding: 8px 14px; border-radius: 999px; font-family: inherit; font-weight: 600; font-size: 15px; cursor: pointer; }
+.topbar nav .sesion:hover { background: rgba(255, 255, 255, 0.12); }
+.nota-pago { font-size: 13px; color: var(--texto-suave, #5b6b84); margin: 0; line-height: 1.45; }
+.bloque-pago { border: 1px solid #dfe6f1; border-radius: 12px; padding: 12px 14px; display: grid; gap: 10px; margin: 0; }
+.bloque-pago legend { font-weight: 700; padding: 0 6px; }
+.fila-pago { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 .hero { background: linear-gradient(135deg, var(--navy) 0%, var(--azul-osc) 100%); padding: 48px 20px 40px; }
 .hero-inner { max-width: 1120px; margin: 0 auto; }

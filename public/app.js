@@ -312,6 +312,52 @@ function limpiarFiltros() {
   cargarResultados();
 }
 
+/* ---------- Cuenta de cliente ---------- */
+
+let cliente = null;
+
+function pintarSesion() {
+  $('#btn-sesion').textContent = cliente ? `Salir · ${cliente.nombre}` : 'Iniciar sesión';
+}
+
+async function cargarSesion() {
+  try {
+    cliente = await api('/cuentas/yo');
+  } catch {
+    cliente = null;
+  }
+  pintarSesion();
+}
+
+function abrirLogin() {
+  $('#form-login').reset();
+  mostrarError('#error-login', '');
+  $('#dlg-login').showModal();
+}
+
+async function enviarLogin(evento) {
+  evento.preventDefault();
+  const datos = new FormData(evento.currentTarget);
+  mostrarError('#error-login', '');
+  try {
+    cliente = await api('/cuentas/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: String(datos.get('email')).trim(), contrasena: String(datos.get('contrasena')) }),
+    });
+    pintarSesion();
+    $('#dlg-login').close();
+  } catch (error) {
+    mostrarError('#error-login', error.message);
+  }
+}
+
+async function alternarSesion() {
+  if (!cliente) return abrirLogin();
+  await api('/cuentas/logout', { method: 'POST' });
+  cliente = null;
+  pintarSesion();
+}
+
 /* ---------- Reserva ---------- */
 
 const dlg = () => $('#dlg-reserva');
@@ -323,6 +369,16 @@ function abrirReserva(id) {
   const total = v.precioPorDia * b.dias;
   const devolucion = estado.sucursales.find((s) => s.id === b.devolucionId);
 
+  if (!cliente) {
+    $('#dlg-contenido').innerHTML = `<div class="dlg">
+      <div class="dlg-cab"><h2 id="dlg-titulo">Inicia sesión para reservar</h2><button type="button" class="cerrar" data-cerrar aria-label="Cerrar">&times;</button></div>
+      <p>Para confirmar la reserva de <strong>${esc(v.marca)} ${esc(v.modelo)}</strong> necesitas una cuenta de cliente.</p>
+      <div class="acciones"><button type="button" class="btn btn-primario" data-abrir-login>Iniciar sesión</button></div>
+    </div>`;
+    dlg().showModal();
+    return;
+  }
+
   $('#dlg-contenido').innerHTML = `<div class="dlg">
     <div class="dlg-cab"><h2 id="dlg-titulo">Confirma tu reserva</h2><button type="button" class="cerrar" data-cerrar aria-label="Cerrar">&times;</button></div>
     <div class="resumen">
@@ -332,11 +388,20 @@ function abrirReserva(id) {
       <div class="total-linea"><span>${b.dias} ${b.dias === 1 ? 'día' : 'días'}</span><span>${dinero.format(total)}</span></div>
     </div>
     <form id="form-reserva" class="form-reserva">
-      <label class="campo"><span>Nombre completo</span><input type="text" name="nombre" required maxlength="120" autocomplete="name" value="${esc(leer('ar-nombre'))}"></label>
-      <label class="campo"><span>Correo electrónico</span><input type="email" name="email" required autocomplete="email" value="${esc(leer('ar-email'))}"></label>
+      <label class="campo"><span>Nombre completo</span><input type="text" name="nombre" required maxlength="120" autocomplete="name" value="${esc(cliente.nombre)}"></label>
+      <label class="campo"><span>Correo electrónico</span><input type="email" name="email" required readonly value="${esc(cliente.email)}"></label>
       <label class="campo"><span>Teléfono</span><input type="tel" name="telefono" required pattern="[0-9+\\-\\s()]{7,20}" autocomplete="tel" value="${esc(leer('ar-telefono'))}"></label>
+      <fieldset class="bloque-pago">
+        <legend>Pago (simulado)</legend>
+        <p class="nota-pago">Simulación: no se cobra nada real. Tarjeta aprobada: <strong>4111 1111 1111 1111</strong> · Tarjeta rechazada: <strong>4000 0000 0000 0002</strong>. Usa cualquier fecha futura y un CVV de 3 dígitos.</p>
+        <label class="campo"><span>Número de tarjeta</span><input type="text" name="tarjeta" required inputmode="numeric" autocomplete="cc-number" placeholder="4111 1111 1111 1111"></label>
+        <div class="fila-pago">
+          <label class="campo"><span>Vencimiento (MM/AA)</span><input type="text" name="vencimiento" required pattern="(0[1-9]|1[0-2])/\\d{2}" autocomplete="cc-exp" placeholder="12/30"></label>
+          <label class="campo"><span>CVV</span><input type="text" name="cvv" required inputmode="numeric" pattern="\\d{3,4}" autocomplete="cc-csc" placeholder="123"></label>
+        </div>
+      </fieldset>
       <p id="error-reserva" class="error" role="alert" hidden></p>
-      <button type="submit" class="btn btn-primario">Confirmar reserva · ${dinero.format(total)}</button>
+      <button type="submit" class="btn btn-primario">Pagar y confirmar reserva · ${dinero.format(total)}</button>
     </form>
   </div>`;
 
@@ -359,6 +424,11 @@ async function enviarReserva(evento, vehiculo) {
     nombreCliente: String(datos.get('nombre')).trim(),
     email: String(datos.get('email')).trim(),
     telefono: String(datos.get('telefono')).trim(),
+    pago: {
+      numero: String(datos.get('tarjeta')).trim(),
+      vencimiento: String(datos.get('vencimiento')).trim(),
+      cvv: String(datos.get('cvv')).trim(),
+    },
   };
   if (b.devolucionId !== vehiculo.sucursalId) cuerpo.sucursalDevolucionId = b.devolucionId;
 
@@ -389,6 +459,7 @@ function mostrarConfirmacion(r) {
       <p>${fechaCorta(r.fechaRecogida)} → ${fechaCorta(r.fechaDevolucion)} (${r.dias} ${r.dias === 1 ? 'día' : 'días'})</p>
       <p>Recogida en ${esc(r.sucursalRecogida.nombre)}, ${esc(r.sucursalRecogida.ciudad)}</p>
       <div class="total-linea"><span>Total</span><span>${dinero.format(r.total)}</span></div>
+      <p class="nota-pago">Pago simulado aprobado · ref. ${esc(r.pagoReferencia)} · tarjeta terminada en ${esc(r.tarjetaUltimos4)}</p>
     </div>
     <div class="acciones">
       <button type="button" class="btn btn-secundario" data-cerrar>Seguir buscando</button>
@@ -542,6 +613,8 @@ function enrutar() {
 function enlazarEventos() {
   $('#form-busqueda').addEventListener('submit', buscar);
   $('#form-reservas').addEventListener('submit', consultarReservas);
+  $('#form-login').addEventListener('submit', enviarLogin);
+  $('#btn-sesion').addEventListener('click', alternarSesion);
   $('#otra-devolucion').addEventListener('change', (e) => { $('#wrap-devolucion').hidden = !e.target.checked; });
   window.addEventListener('hashchange', enrutar);
 
@@ -571,6 +644,8 @@ function enlazarEventos() {
     if (objetivo.dataset.marca) elegirMarca(objetivo.dataset.marca);
     else if (objetivo.dataset.reservar) abrirReserva(Number(objetivo.dataset.reservar));
     else if (objetivo.dataset.cancelar) cancelarReserva(Number(objetivo.dataset.cancelar), objetivo.dataset.codigo);
+    else if ('abrirLogin' in objetivo.dataset) { dlg().close(); abrirLogin(); }
+    else if ('cerrarLogin' in objetivo.dataset) $('#dlg-login').close();
     else if ('cerrar' in objetivo.dataset) dlg().close();
     else if (objetivo.dataset.verReservas !== undefined) {
       dlg().close();
@@ -621,6 +696,7 @@ async function iniciar() {
   configurarFechas();
   enlazarEventos();
   enrutar();
+  cargarSesion();
   api('/vehiculos/marcas')
     .then((marcas) => { estado.marcas = marcas; pintarMarcas(); })
     .catch(() => { $('#carrusel-marcas').closest('#promos').querySelector('.marcas-cab').hidden = true; $('#carrusel-marcas').hidden = true; });

@@ -69,6 +69,15 @@ export class Reserva {
   @Column('varchar', { default: 'CONFIRMADA' })
   estado: string;
 
+  @Column('int', { nullable: true })
+  cuentaId: number | null;
+
+  @Column('varchar', { nullable: true })
+  pagoReferencia: string | null;
+
+  @Column('varchar', { nullable: true })
+  tarjetaUltimos4: string | null;
+
   @CreateDateColumn()
   creadaEn: Date;
 }
