@@ -390,7 +390,7 @@ function abrirReserva(id) {
     <form id="form-reserva" class="form-reserva">
       <label class="campo"><span>Nombre completo</span><input type="text" name="nombre" required maxlength="120" autocomplete="name" value="${esc(cliente.nombre)}"></label>
       <label class="campo"><span>Correo electrónico</span><input type="email" name="email" required readonly value="${esc(cliente.email)}"></label>
-      <label class="campo"><span>Teléfono</span><input type="tel" name="telefono" required pattern="[0-9+\\-\\s()]{7,20}" autocomplete="tel" value="${esc(leer('ar-telefono'))}"></label>
+      <label class="campo"><span>Teléfono</span><input type="tel" name="telefono" required pattern="[0-9+\\-\\s\\(\\)]{7,20}" autocomplete="tel" value="${esc(leer('ar-telefono'))}"></label>
       <fieldset class="bloque-pago">
         <legend>Pago (simulado)</legend>
         <p class="nota-pago">Simulación: no se cobra nada real. Tarjeta aprobada: <strong>4111 1111 1111 1111</strong> · Tarjeta rechazada: <strong>4000 0000 0000 0002</strong>. Usa cualquier fecha futura y un CVV de 3 dígitos.</p>
