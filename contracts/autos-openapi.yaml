@@ -1,0 +1,722 @@
+openapi: 3.0.3
+info:
+  title: AutoSpot - API B2B/GDS de alquiler de vehículos
+  version: 1.0.0
+  description: >-
+    Contrato de integración para búsqueda, catálogo, órdenes y webhooks.
+    La implementación se encuentra en src/gds-autos y conserva nombres de
+    propiedades en snake_case.
+servers:
+  - url: https://alquiler-vehiculos-ijx3.onrender.com/api/v1
+    description: Producción
+  - url: http://localhost:3000/api/v1
+    description: Desarrollo local
+tags:
+  - name: Búsqueda y Catálogo
+  - name: Información de Agencias y Proveedores
+  - name: Componentes Comunes
+  - name: Gestión de Órdenes
+  - name: Webhooks
+
+paths:
+  /search:
+    post:
+      tags: [Búsqueda y Catálogo]
+      summary: Buscar vehículos disponibles
+      parameters:
+        - $ref: '#/components/parameters/AffiliateId'
+      requestBody:
+        $ref: '#/components/requestBodies/CarSearchRequest'
+      responses:
+        '200':
+          description: Resultados de búsqueda
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarSearchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /details:
+    post:
+      tags: [Búsqueda y Catálogo]
+      summary: Obtener especificaciones de los vehículos
+      parameters:
+        - $ref: '#/components/parameters/AffiliateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PagedRequest'
+      responses:
+        '200':
+          description: Detalles de vehículos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarDetailsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /depots:
+    post:
+      tags: [Información de Agencias y Proveedores]
+      summary: Consultar agencias de recogida y entrega
+      parameters:
+        - $ref: '#/components/parameters/AffiliateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepotsRequest'
+      responses:
+        '200':
+          description: Agencias disponibles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepotsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /depots/reviews/scores:
+    post:
+      tags: [Información de Agencias y Proveedores]
+      summary: Obtener puntuaciones de agencias
+      parameters:
+        - $ref: '#/components/parameters/AffiliateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PageRequest'
+      responses:
+        '200':
+          description: Puntuaciones de agencias
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepotScoresResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /suppliers:
+    post:
+      tags: [Información de Agencias y Proveedores]
+      summary: Listar proveedores
+      parameters:
+        - $ref: '#/components/parameters/AffiliateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuppliersRequest'
+      responses:
+        '200':
+          description: Proveedores disponibles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuppliersResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /constants:
+    post:
+      tags: [Componentes Comunes]
+      summary: Consultar constantes del sistema
+      parameters:
+        - $ref: '#/components/parameters/AffiliateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConstantsRequest'
+      responses:
+        '200':
+          description: Constantes solicitadas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstantsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /orders/hold:
+    post:
+      tags: [Gestión de Órdenes]
+      summary: Bloquear temporalmente vehículo y precio
+      security:
+        - OAuth2Security: [autos:book]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderHoldRequest'
+      responses:
+        '200':
+          description: Vehículo bloqueado temporalmente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderHoldResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /orders/preview:
+    post:
+      tags: [Gestión de Órdenes]
+      summary: Previsualizar una orden
+      security:
+        - OAuth2Security: [autos:read]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderPreviewRequest'
+      responses:
+        '200':
+          description: Previsualización calculada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderPreviewResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /orders/create:
+    post:
+      tags: [Gestión de Órdenes]
+      summary: Crear una orden de alquiler
+      security:
+        - OAuth2Security: [autos:book]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+      responses:
+        '201':
+          description: Orden creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /orders/{orderId}:
+    get:
+      tags: [Gestión de Órdenes]
+      summary: Obtener una orden
+      security:
+        - OAuth2Security: [autos:read]
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Detalle de la orden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /orders/{orderId}/modify:
+    post:
+      tags: [Gestión de Órdenes]
+      summary: Modificar una orden
+      security:
+        - OAuth2Security: [autos:book]
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderModifyRequest'
+      responses:
+        '200':
+          description: Orden modificada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /orders/{orderId}/cancel:
+    post:
+      tags: [Gestión de Órdenes]
+      summary: Cancelar una orden
+      security:
+        - OAuth2Security: [autos:cancel]
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Orden cancelada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /webhooks:
+    get:
+      tags: [Webhooks]
+      summary: Listar suscripciones
+      security:
+        - OAuth2Security: [autos:webhooks]
+      responses:
+        '200':
+          description: Suscripciones registradas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WebhookSubscription'
+    post:
+      tags: [Webhooks]
+      summary: Registrar una suscripción
+      security:
+        - OAuth2Security: [autos:webhooks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWebhook'
+      responses:
+        '201':
+          description: Suscripción creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookSubscription'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /webhooks/{id}:
+    delete:
+      tags: [Webhooks]
+      summary: Eliminar una suscripción
+      security:
+        - OAuth2Security: [autos:webhooks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Suscripción eliminada
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    OAuth2Security:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.booking-hub.com/oauth2/authorize
+          tokenUrl: https://auth.booking-hub.com/oauth2/token
+          scopes:
+            autos:read: Leer catálogo y órdenes
+            autos:book: Crear y modificar órdenes
+            autos:cancel: Cancelar órdenes
+            autos:webhooks: Gestionar webhooks
+        clientCredentials:
+          tokenUrl: https://auth.booking-hub.com/oauth2/token
+          scopes:
+            autos:read: Leer catálogo y órdenes
+            autos:book: Crear y modificar órdenes
+            autos:cancel: Cancelar órdenes
+            autos:webhooks: Gestionar webhooks
+  parameters:
+    AffiliateId:
+      name: X-Affiliate-Id
+      in: header
+      required: true
+      description: Identificador entero positivo del afiliado
+      schema:
+        type: integer
+        minimum: 1
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: UUID v4 para evitar operaciones duplicadas
+      schema:
+        type: string
+        format: uuid
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  requestBodies:
+    CarSearchRequest:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CarSearchRequest'
+  responses:
+    BadRequest:
+      description: Petición inválida
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Conflict:
+      description: Conflicto de disponibilidad o estado
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    Booker:
+      type: object
+      required: [country]
+      properties:
+        country:
+          type: string
+          pattern: '^[a-z]{2}$'
+          example: ec
+    Driver:
+      type: object
+      required: [age]
+      properties:
+        age:
+          type: integer
+          minimum: 18
+          maximum: 99
+          example: 28
+    Coordinates:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude: { type: number, minimum: -90, maximum: 90 }
+        longitude: { type: number, minimum: -180, maximum: 180 }
+    LocationPoint:
+      type: object
+      properties:
+        airport: { type: string, example: UIO }
+        city_id: { type: integer, example: 1 }
+        coordinates: { $ref: '#/components/schemas/Coordinates' }
+    RoutePoint:
+      type: object
+      required: [datetime, location]
+      properties:
+        datetime: { type: string, format: date-time }
+        location: { $ref: '#/components/schemas/LocationPoint' }
+    Route:
+      type: object
+      required: [pickup, dropoff]
+      properties:
+        pickup: { $ref: '#/components/schemas/RoutePoint' }
+        dropoff: { $ref: '#/components/schemas/RoutePoint' }
+    SearchFilters:
+      type: object
+      properties:
+        car_types:
+          type: array
+          items:
+            type: string
+            enum: [ECONOMICO, COMPACTO, INTERMEDIO, SUV, CAMIONETA, VAN, LUJO]
+        transmission:
+          type: array
+          items:
+            type: string
+            enum: [MANUAL, AUTOMATICA]
+    CarSearchRequest:
+      type: object
+      required: [booker, currency, driver, route]
+      properties:
+        booker: { $ref: '#/components/schemas/Booker' }
+        currency: { type: string, pattern: '^[A-Z]{3}$', example: USD }
+        driver: { $ref: '#/components/schemas/Driver' }
+        route: { $ref: '#/components/schemas/Route' }
+        filters: { $ref: '#/components/schemas/SearchFilters' }
+        maximum_results: { type: integer, minimum: 10, maximum: 500, default: 100 }
+        language: { type: string }
+        page: { type: string }
+    CarSearchResponse:
+      type: object
+      required: [request_id, data, metadata, search_token]
+      properties:
+        request_id: { type: string }
+        data:
+          type: array
+          items:
+            type: object
+            required: [vehicle_id, price, supplier_id]
+            properties:
+              vehicle_id: { type: string }
+              price: { type: number }
+              supplier_id: { type: integer }
+        metadata:
+          type: object
+          required: [total_results]
+          properties:
+            total_results: { type: integer }
+            next_page: { type: string, nullable: true }
+        search_token: { type: string }
+    PageRequest:
+      type: object
+      properties:
+        maximum_results: { type: integer, default: 100 }
+        page: { type: string }
+    PagedRequest:
+      allOf:
+        - $ref: '#/components/schemas/PageRequest'
+        - type: object
+          properties:
+            last_modified: { type: string, format: date-time }
+    DepotsRequest:
+      allOf:
+        - $ref: '#/components/schemas/PagedRequest'
+        - type: object
+          properties:
+            languages:
+              type: array
+              items: { type: string }
+    CarDetailsResponse:
+      type: object
+      required: [request_id, data]
+      properties:
+        request_id: { type: string }
+        data:
+          type: array
+          items:
+            type: object
+            required: [vehicle_id, make, model, doors, bag_capacity, seats]
+            properties:
+              vehicle_id: { type: string }
+              make: { type: string }
+              model: { type: string }
+              doors: { type: integer }
+              bag_capacity: { type: integer }
+              seats: { type: integer }
+    DepotsResponse:
+      type: object
+      required: [request_id, data, metadata]
+      properties:
+        request_id: { type: string }
+        data:
+          type: array
+          items:
+            type: object
+            required: [depot_id, name, location]
+            properties:
+              depot_id: { type: integer }
+              name: { type: string }
+              location: { $ref: '#/components/schemas/LocationPoint' }
+        metadata: { $ref: '#/components/schemas/ResultMetadata' }
+    DepotScoresResponse:
+      type: object
+      required: [request_id, data, metadata]
+      properties:
+        request_id: { type: string }
+        data:
+          type: array
+          items:
+            type: object
+            required: [depot_id, score]
+            properties:
+              depot_id: { type: integer }
+              score: { type: number }
+        metadata: { $ref: '#/components/schemas/ResultMetadata' }
+    ResultMetadata:
+      type: object
+      required: [total_results]
+      properties:
+        total_results: { type: integer }
+    SuppliersRequest:
+      allOf:
+        - $ref: '#/components/schemas/PageRequest'
+        - type: object
+          properties:
+            suppliers:
+              type: array
+              items: { type: integer }
+    SuppliersResponse:
+      type: object
+      required: [request_id, data]
+      properties:
+        request_id: { type: string }
+        data:
+          type: array
+          items:
+            type: object
+            required: [supplier_id, name]
+            properties:
+              supplier_id: { type: integer }
+              name: { type: string }
+    ConstantsRequest:
+      type: object
+      properties:
+        languages:
+          type: array
+          items: { type: string }
+        constants:
+          type: array
+          items:
+            type: string
+            enum: [depot_services, fuel_policies, fuel_types, general, payment_timings, transmission]
+    ConstantsResponse:
+      type: object
+      required: [request_id, data]
+      properties:
+        request_id: { type: string }
+        data: { type: object, additionalProperties: true }
+    OrderHoldRequest:
+      type: object
+      required: [vehicle_id, search_token]
+      properties:
+        vehicle_id: { type: string }
+        search_token: { type: string }
+        driver: { $ref: '#/components/schemas/Driver' }
+    OrderHoldResponse:
+      type: object
+      required: [hold_id, expires_at, status]
+      properties:
+        hold_id: { type: string }
+        expires_at: { type: string, format: date-time }
+        status: { type: string, enum: [HELD, FAILED] }
+    OrderPreviewRequest:
+      type: object
+      required: [vehicle_id, search_token]
+      properties:
+        vehicle_id: { type: string }
+        search_token: { type: string }
+        hold_id: { type: string, format: uuid }
+        extras:
+          type: array
+          items: { type: string }
+    OrderPreviewResponse:
+      type: object
+      required: [request_id, data]
+      properties:
+        request_id: { type: string }
+        data:
+          type: object
+          required: [order_preview_id, total_price, currency, breakdown]
+          properties:
+            order_preview_id: { type: string, format: uuid }
+            total_price: { type: number }
+            currency: { type: string }
+            breakdown:
+              type: object
+              additionalProperties: { type: number }
+    DriverDetails:
+      type: object
+      required: [first_name, last_name, email, phone_number]
+      properties:
+        first_name: { type: string }
+        last_name: { type: string }
+        email: { type: string, format: email }
+        phone_number: { type: string, pattern: '^[0-9+\\-\\s()]{7,20}$' }
+    OrderCreateRequest:
+      type: object
+      required: [order_preview_id, payment_reference, driver_details]
+      properties:
+        order_preview_id: { type: string, format: uuid }
+        payment_reference: { type: string }
+        driver_details: { $ref: '#/components/schemas/DriverDetails' }
+    OrderModifyRequest:
+      type: object
+      properties:
+        extras_to_add:
+          type: array
+          items: { type: string }
+        extras_to_remove:
+          type: array
+          items: { type: string }
+        route: { $ref: '#/components/schemas/Route' }
+    OrderDetail:
+      type: object
+      required: [order_id, locator, status, vehicle_details, route_details, total_price, currency, creation_date]
+      properties:
+        order_id: { type: string, format: uuid }
+        locator: { type: string }
+        status: { type: string, enum: [CONFIRMED, CANCELLED, PENDING] }
+        vehicle_details: { type: object, additionalProperties: true }
+        route_details: { type: object, additionalProperties: true }
+        total_price: { type: number }
+        currency: { type: string }
+        creation_date: { type: string, format: date-time }
+        _links:
+          type: object
+          additionalProperties: { type: string }
+    CreateWebhook:
+      type: object
+      required: [url, events]
+      properties:
+        url: { type: string, format: uri }
+        events:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            enum: [CAR_ORDER_CONFIRMED, CAR_ORDER_CANCELLED, DEPOT_UPDATE]
+        secret: { type: string }
+    WebhookSubscription:
+      allOf:
+        - $ref: '#/components/schemas/CreateWebhook'
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string, format: uuid }
+    ProblemDetails:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        code:
+          type: string
+          enum:
+            - VALIDATION_FAILED
+            - CAR_NO_LONGER_AVAILABLE
+            - PRICE_CHANGED
+            - DEPOT_CLOSED
+            - DRIVER_AGE_RESTRICTION
+            - BOOKING_NOT_CONFIRMED
+            - CANCELLATION_NOT_ALLOWED
+            - RATE_LIMIT_EXCEEDED
+            - PAYMENT_REFERENCE_INVALID
+            - PAYMENT_NOT_AUTHORIZED
+        invalidParams:
+          type: array
+          items:
+            type: object
+            required: [name, reason]
+            properties:
+              name: { type: string }
+              reason: { type: string }
