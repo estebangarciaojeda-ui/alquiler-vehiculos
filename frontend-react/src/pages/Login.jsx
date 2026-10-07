@@ -17,8 +17,8 @@ export default function Login() {
     try {
       await login(identificador, contrasena);
       navigate('/vehiculos');
-    } catch {
-      setError('Usuario o contraseña incorrectos.');
+    } catch (error) {
+      setError(error.message || 'Usuario o contraseña incorrectos.');
     } finally {
       setCargando(false);
     }
@@ -58,8 +58,8 @@ export default function Login() {
         </button>
 
         <p className="text-muted small mt-3 mb-0">
-          Admin: usuario del panel admin. También acepta una cuenta de cliente
-          (cliente1@correo.com / cliente1).
+          Ingresa con el administrador principal o con una cuenta a la que se le
+          haya concedido el rol de administrador.
         </p>
       </form>
     </div>

@@ -39,8 +39,8 @@ export class AuthJwtController {
 
     const cuenta = await this.cuentas.validarLogin(dto.identificador, dto.contrasena);
     if (cuenta) {
-      const accessToken = crearJwt({ sub: String(cuenta.id), role: 'cliente', nombre: cuenta.nombre }, secreto, DURACION_MS);
-      return { accessToken, role: 'cliente', nombre: cuenta.nombre };
+      const accessToken = crearJwt({ sub: String(cuenta.id), role: cuenta.rol, nombre: cuenta.nombre }, secreto, DURACION_MS);
+      return { accessToken, role: cuenta.rol, nombre: cuenta.nombre };
     }
 
     throw new UnauthorizedException('Credenciales incorrectas');

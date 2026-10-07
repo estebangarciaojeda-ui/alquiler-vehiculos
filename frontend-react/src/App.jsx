@@ -13,7 +13,7 @@ export default function App() {
         <Route
           path="/vehiculos"
           element={
-            <RutaProtegida>
+            <RutaProtegida rolRequerido="admin">
               <Vehiculos />
             </RutaProtegida>
           }
@@ -21,7 +21,7 @@ export default function App() {
         <Route
           path="/sucursales"
           element={
-            <RutaProtegida>
+            <RutaProtegida rolRequerido="admin">
               <Sucursales />
             </RutaProtegida>
           }

@@ -13,6 +13,9 @@ export function AuthProvider({ children }) {
 
   async function login(identificador, contrasena) {
     const { data } = await api.post('/auth/login', { identificador, contrasena });
+    if (data.role !== 'admin') {
+      throw new Error('Esta cuenta no tiene privilegios de administrador.');
+    }
     localStorage.setItem('autospot_token', data.accessToken);
     localStorage.setItem('autospot_role', data.role);
     localStorage.setItem('autospot_nombre', data.nombre);

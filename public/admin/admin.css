@@ -70,7 +70,7 @@ button:hover { filter: brightness(1.1); }
 }
 .topbar h1 { font-size: 1.1rem; margin: 0; }
 
-.tabs { display: flex; gap: 4px; padding: 12px 28px 0; border-bottom: 1px solid var(--borde); }
+.tabs { display: flex; gap: 4px; padding: 12px 28px 0; border-bottom: 1px solid var(--borde); overflow-x: auto; }
 .tab-btn {
   background: transparent;
   color: var(--tenue);
@@ -83,6 +83,12 @@ button:hover { filter: brightness(1.1); }
 
 main { padding: 24px 28px; }
 .acciones { margin-bottom: 14px; }
+.seccion-cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+.seccion-cabecera h2 { margin: 0 0 6px; font-size: 1.05rem; }
+.vacio { color: var(--tenue); text-align: center; padding: 28px 8px; }
+.rol { display: inline-block; border-radius: 999px; padding: 4px 9px; font-size: 0.75rem; font-weight: 700; }
+.rol-cliente { color: #bfdbfe; background: #1e3a5f; }
+.rol-admin { color: #fde68a; background: #713f12; }
 
 table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--borde); }
@@ -113,3 +119,11 @@ td button { padding: 5px 10px; font-size: 0.8rem; margin-right: 4px; }
 
 .checkbox-linea { flex-direction: row; align-items: center; gap: 8px !important; }
 .checkbox-linea input { width: auto; }
+
+@media (max-width: 720px) {
+  .topbar, main { padding-left: 16px; padding-right: 16px; }
+  .tabs { padding-left: 16px; padding-right: 16px; }
+  .seccion-cabecera { flex-direction: column; }
+  .tab-panel { overflow-x: auto; }
+  table { min-width: 760px; }
+}

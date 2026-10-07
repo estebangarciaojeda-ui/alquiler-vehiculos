@@ -3,6 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { Cuenta } from './../src/cuentas/cuenta.entity.js';
 import { Reserva } from './../src/reservas/reserva.entity.js';
 import { AppModule } from './../src/app.module.js';
 
@@ -11,9 +12,14 @@ describe('API de alquiler (e2e)', () => {
   let http: ReturnType<INestApplication['getHttpServer']>;
   let dataSource: DataSource;
   let cookieCliente: string;
+  let cookieAdmin: string;
+  let cuentaPromovidaId: number | null = null;
   const creadas: number[] = [];
 
   beforeAll(async () => {
+    process.env.ADMIN_USER = 'admin-e2e';
+    process.env.ADMIN_PASSWORD = 'admin-e2e-seguro';
+    process.env.ADMIN_SESSION_SECRET = 'secreto-e2e-de-al-menos-32-caracteres';
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
@@ -26,9 +32,16 @@ describe('API de alquiler (e2e)', () => {
       .send({ email: 'cliente1@correo.com', contrasena: 'cliente1' })
       .expect(200);
     cookieCliente = login.headers['set-cookie'][0];
+
+    const loginAdmin = await request(http)
+      .post('/admin/api/login')
+      .send({ usuario: 'admin-e2e', contrasena: 'admin-e2e-seguro' })
+      .expect(200);
+    cookieAdmin = loginAdmin.headers['set-cookie'][0];
   });
 
   afterAll(async () => {
+    if (cuentaPromovidaId) await dataSource.getRepository(Cuenta).update(cuentaPromovidaId, { rol: 'cliente' });
     if (creadas.length > 0) await dataSource.getRepository(Reserva).delete(creadas);
     await app.close();
   });
@@ -112,5 +125,38 @@ describe('API de alquiler (e2e)', () => {
       .set('Cookie', cookieCliente)
       .send({ vehiculoId: 1, fechaRecogida: '2020-01-01', fechaDevolucion: '2020-01-03', nombreCliente: 'X', email: 'x@x.com', telefono: '0991234567' })
       .expect(400);
+  });
+
+  it('permite administrar roles y revoca inmediatamente un JWT de administrador', async () => {
+    const cuentas = await request(http).get('/admin/api/cuentas').set('Cookie', cookieAdmin).expect(200);
+    const cuenta = cuentas.body.find((item: { email: string }) => item.email === 'cliente2@correo.com');
+    expect(cuenta).toBeTruthy();
+    expect(cuenta.rol).toBe('cliente');
+    cuentaPromovidaId = cuenta.id;
+
+    await request(http)
+      .patch(`/admin/api/cuentas/${cuenta.id}/rol`)
+      .set('Cookie', cookieAdmin)
+      .send({ rol: 'admin' })
+      .expect(200)
+      .expect((res) => expect(res.body.rol).toBe('admin'));
+
+    const loginPromovido = await request(http)
+      .post('/api/v1/auth/login')
+      .send({ identificador: 'cliente2@correo.com', contrasena: 'cliente2' })
+      .expect(200);
+    expect(loginPromovido.body.role).toBe('admin');
+    const token = loginPromovido.body.accessToken;
+
+    await request(http).get('/admin/api/cuentas').set('Authorization', `Bearer ${token}`).expect(200);
+
+    await request(http)
+      .patch(`/admin/api/cuentas/${cuenta.id}/rol`)
+      .set('Cookie', cookieAdmin)
+      .send({ rol: 'cliente' })
+      .expect(200);
+    cuentaPromovidaId = null;
+
+    await request(http).get('/admin/api/cuentas').set('Authorization', `Bearer ${token}`).expect(401);
   });
 });
