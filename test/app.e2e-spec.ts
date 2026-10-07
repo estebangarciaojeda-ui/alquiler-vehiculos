@@ -2,11 +2,15 @@ import { ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
+import { Reserva } from './../src/reservas/reserva.entity.js';
 import { AppModule } from './../src/app.module.js';
 
 describe('API de alquiler (e2e)', () => {
   let app: INestApplication;
   let http: ReturnType<INestApplication['getHttpServer']>;
+  let dataSource: DataSource;
+  let cookieCliente: string;
   const creadas: number[] = [];
 
   beforeAll(async () => {
@@ -15,10 +19,17 @@ describe('API de alquiler (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();
     http = app.getHttpServer();
+    dataSource = moduleRef.get(DataSource);
+
+    const login = await request(http)
+      .post('/api/v1/cuentas/login')
+      .send({ email: 'cliente1@correo.com', contrasena: 'cliente1' })
+      .expect(200);
+    cookieCliente = login.headers['set-cookie'][0];
   });
 
   afterAll(async () => {
-    for (const id of creadas) await request(http).delete(`/api/v1/reservas/${id}`);
+    if (creadas.length > 0) await dataSource.getRepository(Reserva).delete(creadas);
     await app.close();
   });
 
@@ -62,9 +73,10 @@ describe('API de alquiler (e2e)', () => {
       nombreCliente: 'Cliente de prueba',
       email: 'Prueba@Correo.com',
       telefono: '0991234567',
+      pago: { numero: '4111111111111111', vencimiento: '12/30', cvv: '123' },
     };
 
-    const creada = await request(http).post('/api/v1/reservas').send(base).expect(201);
+    const creada = await request(http).post('/api/v1/reservas').set('Cookie', cookieCliente).send(base).expect(201);
     creadas.push(creada.body.id);
     expect(creada.headers.location).toBe(`/api/v1/reservas/${creada.body.id}`);
     expect(creada.body.dias).toBe(3);
@@ -79,22 +91,25 @@ describe('API de alquiler (e2e)', () => {
 
     await request(http)
       .post('/api/v1/reservas')
+      .set('Cookie', cookieCliente)
       .send({ ...base, fechaRecogida: '2030-05-12', fechaDevolucion: '2030-05-15' })
       .expect(409);
 
     await request(http).patch(`/api/v1/reservas/${creada.body.id}/cancelar`).expect(200);
 
-    const otra = await request(http).post('/api/v1/reservas').send(base).expect(201);
+    const otra = await request(http).post('/api/v1/reservas').set('Cookie', cookieCliente).send(base).expect(201);
     creadas.push(otra.body.id);
   });
 
   it('valida los datos de la reserva', async () => {
     await request(http)
       .post('/api/v1/reservas')
+      .set('Cookie', cookieCliente)
       .send({ vehiculoId: 1, fechaRecogida: '2030-05-10', fechaDevolucion: '2030-05-09', nombreCliente: 'X', email: 'no-es-correo', telefono: '0991234567' })
       .expect(400);
     await request(http)
       .post('/api/v1/reservas')
+      .set('Cookie', cookieCliente)
       .send({ vehiculoId: 1, fechaRecogida: '2020-01-01', fechaDevolucion: '2020-01-03', nombreCliente: 'X', email: 'x@x.com', telefono: '0991234567' })
       .expect(400);
   });
