@@ -17,6 +17,8 @@ Backend monolito modular en NestJS (TypeScript) + PostgreSQL (TypeORM). Dos fron
 - `public/` — marketplace y panel admin clásico (HTML/CSS/JS sin framework, con sesión por cookie firmada).
 - `frontend-react/` — **frontend en React** (Vite + React Router + Axios), con **login JWT**, rutas protegidas y CRUD de vehículos. Se compila en el build y se sirve desde el mismo backend en `/app`.
 
+Ambos paneles admin comparten la identidad visual de AutoSpot (logo y paleta navy/cian tomada de `public/styles.css`).
+
 ```
 Cliente (navegador)
    │
