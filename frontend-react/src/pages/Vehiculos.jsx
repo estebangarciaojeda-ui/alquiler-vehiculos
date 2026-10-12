@@ -1,29 +1,9 @@
 import { useEffect, useState } from 'react';
 import api from '../api.js';
+import FotoVehiculo from '../components/FotoVehiculo.jsx';
 import Nav from '../components/Nav.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import { rutaFotoVehiculo } from '../utils/fotoVehiculo.js';
 import { validarVehiculo } from '../utils/validarVehiculo.js';
-
-function FotoVehiculo({ marca, modelo }) {
-  const [fallo, setFallo] = useState(false);
-  if (fallo) {
-    return (
-      <span className="miniatura-auto miniatura-auto--vacia" aria-hidden="true">
-        Sin foto
-      </span>
-    );
-  }
-  return (
-    <img
-      className="miniatura-auto"
-      src={rutaFotoVehiculo(marca, modelo)}
-      alt={`${marca} ${modelo}`}
-      loading="lazy"
-      onError={() => setFallo(true)}
-    />
-  );
-}
 
 const CATEGORIAS = ['ECONOMICO', 'COMPACTO', 'INTERMEDIO', 'SUV', 'CAMIONETA', 'VAN', 'LUJO'];
 const TRANSMISIONES = ['MANUAL', 'AUTOMATICA'];

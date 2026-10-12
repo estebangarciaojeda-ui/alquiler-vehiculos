@@ -15,6 +15,12 @@ export default function Nav({ auth, logout }) {
           <NavLink to="/sucursales" className={({ isActive }) => `btn btn-outline-primary ${isActive ? 'active' : ''}`}>
             Sucursales
           </NavLink>
+          <NavLink to="/reservas" className={({ isActive }) => `btn btn-outline-primary ${isActive ? 'active' : ''}`}>
+            Reservas
+          </NavLink>
+          <NavLink to="/clientes" className={({ isActive }) => `btn btn-outline-primary ${isActive ? 'active' : ''}`}>
+            Clientes
+          </NavLink>
         </div>
       </div>
       <div>
