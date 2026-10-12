@@ -18,7 +18,13 @@ export default function Login() {
       await login(identificador, contrasena);
       navigate('/vehiculos');
     } catch (error) {
-      setError(error.message || 'Usuario o contraseña incorrectos.');
+      if (error.response?.status === 429) {
+        setError('Demasiados intentos. Espera un minuto antes de volver a intentar.');
+      } else if (error.response?.status === 401) {
+        setError('Usuario o contraseña incorrectos.');
+      } else {
+        setError(error.message || 'No se pudo iniciar sesión.');
+      }
     } finally {
       setCargando(false);
     }

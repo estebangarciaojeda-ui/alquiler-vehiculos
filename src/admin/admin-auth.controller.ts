@@ -22,7 +22,7 @@ export class AdminAuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const usuarioEsperado = this.config.get<string>('ADMIN_USER') ?? '';
     const contrasenaEsperada = this.config.get<string>('ADMIN_PASSWORD') ?? '';

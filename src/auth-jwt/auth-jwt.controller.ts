@@ -27,7 +27,7 @@ export class AuthJwtController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Login con JWT: admite usuario admin o cuenta de cliente' })
   async login(@Body() dto: LoginJwtDto) {
     const secreto = this.config.get<string>('JWT_SECRET') ?? this.config.get<string>('ADMIN_SESSION_SECRET') ?? '';

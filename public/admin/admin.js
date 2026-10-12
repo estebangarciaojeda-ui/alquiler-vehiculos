@@ -26,11 +26,15 @@ async function api(ruta, opciones = {}) {
   });
   if (res.status === 401) {
     mostrarLogin();
-    throw new Error('sesión expirada');
+    const error = new Error('sesión expirada');
+    error.status = 401;
+    throw error;
   }
   if (!res.ok) {
     const cuerpo = await res.json().catch(() => ({}));
-    throw new Error(cuerpo.detail || cuerpo.message || `Error HTTP ${res.status}`);
+    const error = new Error(cuerpo.detail || cuerpo.message || `Error HTTP ${res.status}`);
+    error.status = res.status;
+    throw error;
   }
   if (res.status === 204) return null;
   return res.json();
@@ -52,6 +56,12 @@ function mostrarPanel() {
 el('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   el('login-error').hidden = true;
+  // Evita que varios clics/Enter mientras la petición está en vuelo disparen
+  // peticiones duplicadas (eso puede agotar el límite de intentos sin que
+  // el usuario haya escrito nada mal).
+  const boton = el('login-form').querySelector('button[type="submit"]');
+  if (boton.disabled) return;
+  boton.disabled = true;
   try {
     await api(`${ADMIN_API}/login`, {
       method: 'POST',
@@ -59,8 +69,11 @@ el('login-form').addEventListener('submit', async (e) => {
     });
     mostrarPanel();
   } catch (err) {
-    el('login-error').textContent = 'Usuario o contraseña incorrectos.';
+    el('login-error').textContent =
+      err.status === 429 ? 'Demasiados intentos. Espera un minuto antes de volver a intentar.' : 'Usuario o contraseña incorrectos.';
     el('login-error').hidden = false;
+  } finally {
+    boton.disabled = false;
   }
 });
 

@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminModule } from './admin/admin.module.js';
 import { AuthJwtModule } from './auth-jwt/auth-jwt.module.js';
+import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
 import { CuentasModule } from './cuentas/cuentas.module.js';
 import { GdsAutosModule } from './gds-autos/gds-autos.module.js';
 import { ReservasModule } from './reservas/reservas.module.js';
@@ -39,6 +40,6 @@ import { VehiculosModule } from './vehiculos/vehiculos.module.js';
     CuentasModule,
     AuthJwtModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [{ provide: APP_GUARD, useClass: RateLimitGuard }],
 })
 export class AppModule {}
