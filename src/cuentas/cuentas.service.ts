@@ -1,7 +1,7 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
-import { Cuenta } from './cuenta.entity.js';
+import { Cuenta, type RolCuenta } from './cuenta.entity.js';
 import { hashContrasena, verificarContrasena } from './password.util.js';
 
 @Injectable()
@@ -14,7 +14,7 @@ export class CuentasService {
     return (await verificarContrasena(contrasena, cuenta.passwordHash)) ? cuenta : null;
   }
 
-  async registrar(nombre: string, email: string, contrasena: string): Promise<Cuenta> {
+  async registrar(nombre: string, email: string, contrasena: string, rol: RolCuenta = 'cliente'): Promise<Cuenta> {
     const emailNormalizado = email.trim().toLowerCase();
     if (await this.repo.findOneBy({ email: emailNormalizado })) {
       throw new ConflictException('Ya existe una cuenta con ese correo');
@@ -24,6 +24,7 @@ export class CuentasService {
       nombre: nombre.trim(),
       email: emailNormalizado,
       passwordHash: await hashContrasena(contrasena),
+      rol,
     });
 
     try {

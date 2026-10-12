@@ -168,6 +168,23 @@ async function cargarClientes() {
 
 el('btn-recargar-clientes').addEventListener('click', cargarClientes);
 
+el('btn-nuevo-cliente').addEventListener('click', () => {
+  abrirModal(
+    'Nuevo usuario',
+    [
+      { nombre: 'nombre', etiqueta: 'Nombre completo', requerido: true },
+      { nombre: 'email', etiqueta: 'Correo electrónico', tipo: 'email', requerido: true },
+      { nombre: 'contrasena', etiqueta: 'Contraseña (mín. 8 caracteres)', tipo: 'password', requerido: true },
+      { nombre: 'rol', etiqueta: 'Rol', tipo: 'select', opciones: ['cliente', 'admin'] },
+    ],
+    { rol: 'cliente' },
+    async (datos) => {
+      await api(`${ADMIN_API}/cuentas`, { method: 'POST', body: JSON.stringify(datos) });
+      await cargarClientes();
+    },
+  );
+});
+
 // ── Modal genérico ────────────────────────────────────────────────────
 
 let alGuardar = null;
