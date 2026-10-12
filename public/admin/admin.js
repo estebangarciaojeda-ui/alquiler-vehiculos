@@ -134,9 +134,11 @@ async function cargarClientes() {
           [
             { nombre: 'nombre', etiqueta: 'Nombre completo', requerido: true },
             { nombre: 'email', etiqueta: 'Correo electrónico', tipo: 'email', requerido: true },
+            { nombre: 'contrasena', etiqueta: 'Nueva contraseña (opcional, mín. 8 caracteres)', tipo: 'password' },
           ],
           cuenta,
           async (datos) => {
+            if (!datos.contrasena) delete datos.contrasena;
             await api(`${ADMIN_API}/cuentas/${cuenta.id}`, {
               method: 'PATCH',
               body: JSON.stringify(datos),
@@ -210,7 +212,14 @@ function abrirModal(titulo, campos, valores, onGuardar) {
       label.className = 'checkbox-linea';
       label.innerHTML = `<input type="checkbox" id="campo-${campo.nombre}" ${valores[campo.nombre] ? 'checked' : ''} /> ${campo.etiqueta}`;
     } else if (campo.tipo === 'select') {
-      const opciones = campo.opciones.map((o) => `<option value="${o}" ${valores[campo.nombre] === o ? 'selected' : ''}>${o}</option>`).join('');
+      const opciones = campo.opciones
+        .map((o) => {
+          const valor = typeof o === 'object' ? o.valor : o;
+          const etiqueta = typeof o === 'object' ? o.etiqueta : o;
+          const sel = String(valores[campo.nombre]) === String(valor) ? 'selected' : '';
+          return `<option value="${valor}" ${sel}>${esc(etiqueta)}</option>`;
+        })
+        .join('');
       label.innerHTML = `${campo.etiqueta}<select id="campo-${campo.nombre}">${opciones}</select>`;
     } else {
       const val = esc(valores[campo.nombre] ?? '');
@@ -224,7 +233,7 @@ function abrirModal(titulo, campos, valores, onGuardar) {
     for (const campo of campos) {
       const input = el(`campo-${campo.nombre}`);
       if (campo.tipo === 'checkbox') datos[campo.nombre] = input.checked;
-      else if (campo.tipo === 'numero') datos[campo.nombre] = Number(input.value);
+      else if (campo.tipo === 'numero' || campo.numerico) datos[campo.nombre] = Number(input.value);
       else datos[campo.nombre] = input.value;
     }
     try {
@@ -348,7 +357,13 @@ function camposVehiculo() {
     { nombre: 'combustible', etiqueta: 'Combustible', tipo: 'select', opciones: COMBUSTIBLES },
     { nombre: 'aireAcondicionado', etiqueta: 'Aire acondicionado', tipo: 'checkbox' },
     { nombre: 'precioPorDia', etiqueta: 'Precio por día (USD)', tipo: 'numero', requerido: true },
-    { nombre: 'sucursalId', etiqueta: 'ID de sucursal', tipo: 'numero', requerido: true },
+    {
+      nombre: 'sucursalId',
+      etiqueta: 'Sucursal',
+      tipo: 'select',
+      numerico: true,
+      opciones: sucursalesCache.map((s) => ({ valor: s.id, etiqueta: s.nombre })),
+    },
   ];
 }
 

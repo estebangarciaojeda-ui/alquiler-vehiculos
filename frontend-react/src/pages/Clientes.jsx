@@ -49,7 +49,9 @@ export default function Clientes() {
     setError('');
     try {
       if (editandoId) {
-        await adminApi.patch(`/cuentas/${editandoId}`, { nombre: form.nombre, email: form.email });
+        const cuerpo = { nombre: form.nombre, email: form.email };
+        if (form.contrasena) cuerpo.contrasena = form.contrasena;
+        await adminApi.patch(`/cuentas/${editandoId}`, cuerpo);
       } else {
         await adminApi.post('/cuentas', form);
       }
@@ -94,27 +96,26 @@ export default function Clientes() {
               <label className="form-label">Correo electrónico</label>
               <input type="email" className="form-control" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
+            <div className="col-md-2">
+              <label className="form-label">{editandoId ? 'Nueva contraseña (opcional)' : 'Contraseña'}</label>
+              <input
+                type="password"
+                className="form-control"
+                required={!editandoId}
+                minLength={8}
+                placeholder={editandoId ? 'Dejar en blanco para no cambiar' : ''}
+                value={form.contrasena}
+                onChange={(e) => setForm({ ...form, contrasena: e.target.value })}
+              />
+            </div>
             {!editandoId && (
-              <>
-                <div className="col-md-2">
-                  <label className="form-label">Contraseña</label>
-                  <input
-                    type="password"
-                    className="form-control"
-                    required
-                    minLength={8}
-                    value={form.contrasena}
-                    onChange={(e) => setForm({ ...form, contrasena: e.target.value })}
-                  />
-                </div>
-                <div className="col-md-2">
-                  <label className="form-label">Rol</label>
-                  <select className="form-select" value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })}>
-                    <option value="cliente">cliente</option>
-                    <option value="admin">admin</option>
-                  </select>
-                </div>
-              </>
+              <div className="col-md-2">
+                <label className="form-label">Rol</label>
+                <select className="form-select" value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })}>
+                  <option value="cliente">cliente</option>
+                  <option value="admin">admin</option>
+                </select>
+              </div>
             )}
           </div>
           <div className="mt-3">

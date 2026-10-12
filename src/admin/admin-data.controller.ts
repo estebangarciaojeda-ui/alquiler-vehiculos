@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
 import { Cuenta } from '../cuentas/cuenta.entity.js';
 import { CuentasService } from '../cuentas/cuentas.service.js';
+import { hashContrasena } from '../cuentas/password.util.js';
 import { GdsOrder } from '../gds-autos/entities/gds-order.entity.js';
 import { GdsWebhook } from '../gds-autos/entities/gds-webhook.entity.js';
 import { AdminAuthGuard } from './admin-auth.guard.js';
@@ -47,7 +48,11 @@ export class AdminDataController {
     if (duplicada && duplicada.id !== id) throw new ConflictException('Ya existe una cuenta con ese correo');
 
     try {
-      await this.cuentas.update(id, { nombre: dto.nombre.trim(), email });
+      const datos: Partial<Cuenta> = { nombre: dto.nombre.trim(), email };
+      if (dto.contrasena) {
+        datos.passwordHash = await hashContrasena(dto.contrasena);
+      }
+      await this.cuentas.update(id, datos);
     } catch (error) {
       if (error instanceof QueryFailedError && (error.driverError as { code?: string })?.code === '23505') {
         throw new ConflictException('Ya existe una cuenta con ese correo');
