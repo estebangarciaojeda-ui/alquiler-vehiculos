@@ -367,6 +367,7 @@ async function cargarReservas() {
   tbody.innerHTML = lista
     .map(
       (r) => `<tr>
+        <td>${r.vehiculo ? fotoVehiculo(r.vehiculo) : ''}</td>
         <td>${r.id}</td><td>${r.codigo}</td><td>${r.nombreCliente}<br><small>${r.email}</small></td>
         <td>${r.vehiculo?.marca ?? ''} ${r.vehiculo?.modelo ?? ''}</td>
         <td>${r.fechaRecogida} → ${r.fechaDevolucion}</td>
