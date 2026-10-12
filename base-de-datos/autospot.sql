@@ -1,4 +1,14 @@
 --
+-- AutoSpot: respaldo de la base de datos PostgreSQL (esquema + datos semilla).
+-- 9 tablas en total:
+--   - 4 del negocio principal: sucursales, vehiculos, reservas, cuentas.
+--   - 5 del contrato B2B/GDS: gds_holds, gds_previews, gds_orders,
+--     gds_webhooks, gds_idempotencia.
+-- Las contraseñas de la tabla "cuentas" están hasheadas con scrypt + sal
+-- aleatoria (columna "passwordHash"), nunca en texto plano.
+--
+
+--
 -- PostgreSQL database dump
 --
 
