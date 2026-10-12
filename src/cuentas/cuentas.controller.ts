@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { cookieDeCierre, crearCookieSesion } from '../common/sesion-firmada.util.js';
 import { ClienteAuthGuard, COOKIE_CLIENTE, type PeticionCliente } from './cliente-auth.guard.js';
@@ -24,6 +25,7 @@ export class CuentasController {
   }
 
   @Post('registro')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Crear una cuenta de cliente e iniciar sesión' })
   @ApiResponse({ status: 201, description: 'Cuenta creada' })
   @ApiResponse({ status: 409, description: 'El correo ya está registrado' })
@@ -35,6 +37,7 @@ export class CuentasController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Iniciar sesión como cliente (crea una cookie de sesión)' })
   @ApiResponse({ status: 401, description: 'Correo o contraseña incorrectos' })
   async login(@Body() dto: LoginCuentaDto, @Res({ passthrough: true }) res: Response) {

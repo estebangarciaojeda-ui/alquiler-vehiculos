@@ -47,13 +47,14 @@ Cliente (navegador)
 | **XSS** | El frontend clásico escapa toda salida dinámica (`esc()` en `app.js`); React escapa por defecto (JSX). |
 | **Secretos fuera del código** | Contraseñas y claves de firma como variables de entorno (`SWAGGER_*`, `ADMIN_*`, `JWT_SECRET`/`ADMIN_SESSION_SECRET`), nunca en el repositorio. |
 | **Documentación restringida** | `/swagger` exige Basic Auth. |
+| **Rate limiting** | `@nestjs/throttler`: 100 peticiones/min por IP en toda la API; 5/min en los 3 endpoints de login y 10/min en registro de clientes, para dificultar fuerza bruta. |
 
 **Riesgos OWASP Top 10 identificados y cómo se mitigan aquí:**
 
 1. **Broken Access Control (A01)** — mitigado con guards por rol (`AdminAuthGuard`, `ClienteAuthGuard`) en cada endpoint de escritura; sin guard, cualquiera podría crear/borrar sucursales o vehículos.
 2. **Cryptographic Failures (A02)** — contraseñas con `scrypt`+sal (no reversibles) y JWT firmado con HMAC-SHA256; sin esto, una fuga de base de datos expondría contraseñas en texto plano y cualquiera podría falsificar sesiones.
 3. **Injection (A03)** — TypeORM parametriza las consultas; concatenar SQL manualmente con datos del usuario permitiría inyección SQL.
-4. **Identification and Authentication Failures (A07)** — tokens con expiración (8 h) y comparación de contraseñas en tiempo constante (`timingSafeEqual`) para evitar timing attacks en el login.
+4. **Identification and Authentication Failures (A07)** — tokens con expiración (8 h), comparación de contraseñas en tiempo constante (`timingSafeEqual`) para evitar timing attacks, y rate limiting (5 intentos/min) en los endpoints de login para dificultar fuerza bruta.
 
 ## 3. Pruebas, depuración y optimización
 

@@ -33,6 +33,12 @@ function protegerSwagger(usuario: string, contrasena: string) {
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Render (y la mayoría de hosts en la nube) sirven la app detrás de un
+  // proxy inverso. Sin esto, Express ve la IP interna del proxy en cada
+  // petición y el rate limiting (ThrottlerGuard) trataría a todos los
+  // visitantes como una sola IP.
+  app.set('trust proxy', 1);
+
   // CORS: necesario para que el frontend React (servido aparte o en desarrollo
   // en otro puerto/origen) pueda llamar a la API con credenciales (Authorization).
   app.enableCors({
