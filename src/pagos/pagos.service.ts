@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { PagoTarjetaDto } from './dto/pago-tarjeta.dto.js';
-import { luhnValido, TARJETA_RECHAZADA, vencimientoVigente } from './pagos.util.js';
+import { TARJETA_RECHAZADA, vencimientoVigente } from './pagos.util.js';
 
 export interface ResultadoPago {
   referencia: string;
@@ -12,7 +12,7 @@ export interface ResultadoPago {
 export class PagosService {
   simularCobro(pago: PagoTarjetaDto): ResultadoPago {
     const numero = pago.numero.replace(/[\s-]/g, '');
-    if (numero.length < 13 || numero.length > 19 || !luhnValido(numero)) {
+    if (numero.length < 13 || numero.length > 19) {
       throw new BadRequestException('Pago rechazado: número de tarjeta no válido');
     }
     if (!vencimientoVigente(pago.vencimiento)) {

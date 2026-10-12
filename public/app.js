@@ -426,7 +426,7 @@ function abrirReserva(id) {
       <label class="campo"><span>Teléfono</span><input type="tel" name="telefono" required pattern="[0-9+\\-\\s\\(\\)]{7,20}" autocomplete="tel" value="${esc(leer('ar-telefono'))}"></label>
       <fieldset class="bloque-pago">
         <legend>Pago (simulado)</legend>
-        <p class="nota-pago">Simulación: no se cobra nada real. Tarjeta aprobada: <strong>4111 1111 1111 1111</strong> · Tarjeta rechazada: <strong>4000 0000 0000 0002</strong>. Usa cualquier fecha futura y un CVV de 3 dígitos.</p>
+        <p class="nota-pago">Simulación: no se cobra nada real. Acepta cualquier número de 13 a 19 dígitos, excepto <strong>4000 0000 0000 0002</strong> (rechazada a propósito). Usa cualquier fecha futura y un CVV de 3 dígitos.</p>
         <label class="campo"><span>Número de tarjeta</span><input type="text" name="tarjeta" required inputmode="numeric" autocomplete="cc-number" maxlength="19" placeholder="4111 1111 1111 1111"></label>
         <div class="fila-pago">
           <label class="campo"><span>Vencimiento (MM/AA)</span><input type="text" name="vencimiento" required pattern="(0[1-9]|1[0-2])/\\d{2}" autocomplete="cc-exp" maxlength="5" placeholder="12/30"></label>

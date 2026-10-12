@@ -91,7 +91,7 @@ src/app.module.ts   módulos de la aplicación
 src/auth-jwt/       login y verificación JWT
 src/admin/          panel admin clásico (cookie) + guard que también acepta JWT
 src/cuentas/        cuentas de cliente (hash de contraseña, sesión)
-src/pagos/          simulación de pago con tarjeta (Luhn, vencimiento)
+src/pagos/          simulación de pago con tarjeta (longitud, vencimiento)
 src/sucursales/     entidad, DTO, servicio y controlador
 src/vehiculos/      idem + búsqueda con disponibilidad
 src/reservas/       idem + transacción que evita reservas solapadas
