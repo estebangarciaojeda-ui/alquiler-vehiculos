@@ -2,7 +2,28 @@ import { useEffect, useState } from 'react';
 import api from '../api.js';
 import Nav from '../components/Nav.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { rutaFotoVehiculo } from '../utils/fotoVehiculo.js';
 import { validarVehiculo } from '../utils/validarVehiculo.js';
+
+function FotoVehiculo({ marca, modelo }) {
+  const [fallo, setFallo] = useState(false);
+  if (fallo) {
+    return (
+      <span className="miniatura-auto miniatura-auto--vacia" aria-hidden="true">
+        Sin foto
+      </span>
+    );
+  }
+  return (
+    <img
+      className="miniatura-auto"
+      src={rutaFotoVehiculo(marca, modelo)}
+      alt={`${marca} ${modelo}`}
+      loading="lazy"
+      onError={() => setFallo(true)}
+    />
+  );
+}
 
 const CATEGORIAS = ['ECONOMICO', 'COMPACTO', 'INTERMEDIO', 'SUV', 'CAMIONETA', 'VAN', 'LUJO'];
 const TRANSMISIONES = ['MANUAL', 'AUTOMATICA'];
@@ -234,6 +255,7 @@ export default function Vehiculos() {
         <table className="table table-striped table-hover">
           <thead>
             <tr>
+              <th>Foto</th>
               <th>ID</th>
               <th>Marca</th>
               <th>Modelo</th>
@@ -247,6 +269,9 @@ export default function Vehiculos() {
           <tbody>
             {vehiculos.map((v) => (
               <tr key={v.id}>
+                <td>
+                  <FotoVehiculo marca={v.marca} modelo={v.modelo} />
+                </td>
                 <td>{v.id}</td>
                 <td>{v.marca}</td>
                 <td>{v.modelo}</td>

@@ -163,6 +163,25 @@ tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
 td button { padding: 6px 12px; font-size: 0.78rem; margin-right: 6px; border-radius: 8px; }
 
+.miniatura-auto {
+  display: block;
+  width: 72px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: rgba(3, 20, 42, 0.5);
+  border: 1px solid var(--borde);
+}
+.miniatura-auto--vacia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.62rem;
+  color: var(--tenue);
+  line-height: 1.2;
+}
+
 /* ---------- Modal ---------- */
 
 .overlay {

@@ -9,6 +9,15 @@ const el = (id) => document.getElementById(id);
 const esc = (valor) =>
   String(valor ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
+// Mismo esquema de nombres que usa el sitio público (public/app.js) para
+// resolver la foto de cada modelo en public/img/autos/<marca-modelo>.jpg.
+const claveModelo = (v) =>
+  `${v.marca} ${v.modelo}`.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+function fotoVehiculo(v) {
+  return `<img class="miniatura-auto" src="../img/autos/${esc(claveModelo(v))}.jpg" alt="${esc(v.marca)} ${esc(v.modelo)}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'miniatura-auto miniatura-auto--vacia',textContent:'Sin foto'}))">`;
+}
+
 async function api(ruta, opciones = {}) {
   const res = await fetch(ruta, {
     headers: { 'Content-Type': 'application/json' },
@@ -300,6 +309,7 @@ async function cargarVehiculos() {
   tbody.innerHTML = vehiculos
     .map(
       (v) => `<tr>
+        <td>${fotoVehiculo(v)}</td>
         <td>${v.id}</td><td>${v.marca}</td><td>${v.modelo}</td><td>${v.anio}</td><td>${v.categoria}</td>
         <td>$${v.precioPorDia}</td><td>${v.sucursal?.nombre ?? v.sucursalId}</td>
         <td><button data-editar="${v.id}">Editar</button><button data-borrar="${v.id}" class="peligro">Borrar</button></td>
