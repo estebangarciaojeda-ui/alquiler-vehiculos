@@ -58,7 +58,7 @@ Cliente (navegador)
 
 ## 3. Pruebas, depuración y optimización
 
-- **Pruebas unitarias** (Vitest): `src/reservas/reservas.util.spec.ts`, `src/pagos/pagos.util.spec.ts` (validación de tarjeta: Luhn y vencimiento).
+- **Pruebas unitarias** (Vitest, 24 pruebas en 6 archivos): disponibilidad de reservas y pagos (`reservas.util.spec.ts`, `pagos.util.spec.ts`), registro de cuentas (`cuentas.service.spec.ts`) y las tres piezas de seguridad — firma/verificación de JWT (`jwt.util.spec.ts`), hash de contraseñas con scrypt (`password.util.spec.ts`) y cookies de sesión firmadas (`sesion-firmada.util.spec.ts`): casos de token/cookie manipulados, secreto incorrecto y expiración.
 - **Análisis estático**: `oxlint` en el backend (`npm run lint`), `eslint` en el frontend React (`frontend-react/npm run lint`).
 - **Depuración**: Network/Console del navegador para verificar peticiones JWT (`Authorization: Bearer`) y respuestas de la API; logs del servidor en Render.
 - **Optimización**: build de producción de Vite (minificado + tree-shaking, ver `frontend-react/dist`); `Cache-Control` en endpoints de catálogo poco cambiantes del contrato B2B.
