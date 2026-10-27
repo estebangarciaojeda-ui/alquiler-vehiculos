@@ -70,6 +70,13 @@ Cliente (navegador)
 3. **Panel admin en React** (`/app`, JWT): login y CRUD de vehículos consumiendo la misma API REST.
 4. **Contrato B2B/GDS** (`/api/v1/search`, `/orders/*`, `/webhooks`, ver Swagger): integración con sistemas externos de distribución.
 
+## 4.1 Integración con Booking Prototipo (RDA 2)
+
+Cumple `contracts/autos-openapi-v3.yaml` (REST) e `contracts/inventory.proto` (gRPC de stock): catálogo, búsqueda,
+reservas idempotentes con Saga (`409`), cooldown de 2 h tras la devolución, odómetro y alertas de mantenimiento,
+promociones B2B, health para el semáforo LED y envío de stock a Booking. Detalle, variables y checklist en
+[`docs/INTEGRACION_BOOKING.md`](docs/INTEGRACION_BOOKING.md); prueba extremo a extremo: `test/integracion-booking.smoke.mjs`.
+
 ## 5. Endpoints principales (`/swagger` para probarlos todos)
 
 | Recurso | Operaciones |

@@ -12,7 +12,7 @@ services:
         value: production
       - key: DATABASE_URL
         fromDatabase:
-          name: productos-db
+          name: autospot-db
           property: connectionString
       - key: SWAGGER_USER
         sync: false
@@ -23,4 +23,13 @@ services:
       - key: ADMIN_PASSWORD
         sync: false
       - key: ADMIN_SESSION_SECRET
+        sync: false
+      # Integración con Booking Prototipo (contratos autos-openapi-v3 e inventory.proto)
+      - key: NODE_ID
+        value: NODE_AUT_AUTOSPOT
+      - key: BOOKING_GRPC_HOST
+        value: rda1-backend-integracion-sistemas.onrender.com:50051
+      - key: BOOKING_REST_URL
+        value: https://rda1-backend-integracion-sistemas.onrender.com
+      - key: TIENDA_AUTOS_API_KEY
         sync: false

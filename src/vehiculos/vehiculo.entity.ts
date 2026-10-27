@@ -43,6 +43,22 @@ export class Vehiculo {
   @Column('int')
   sucursalId: number;
 
+  // Estado operativo persistido (integración con Booking). RESERVADO,
+  // LISTO_PARA_ENTREGAR y ENTREGADO se derivan de las reservas; aquí solo se
+  // guardan DISPONIBLE, EN_LIMPIEZA (cooldown de 2 h) y EN_MANTENIMIENTO.
+  @Column('varchar', { default: 'DISPONIBLE' })
+  estadoOperativo: string;
+
+  @Column('int', { default: 0 })
+  kilometrajeActual: number;
+
+  @Column('int', { default: 10000 })
+  proximoMantenimientoKm: number;
+
+  // Fin del cooldown de limpieza; null si no está en limpieza.
+  @Column('timestamptz', { nullable: true })
+  disponibleDesde: Date | null;
+
   @ManyToOne(() => Sucursal, { eager: true, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'sucursalId' })
   sucursal: Sucursal;

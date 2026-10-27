@@ -8,6 +8,7 @@ import { AuthJwtModule } from './auth-jwt/auth-jwt.module.js';
 import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
 import { CuentasModule } from './cuentas/cuentas.module.js';
 import { GdsAutosModule } from './gds-autos/gds-autos.module.js';
+import { IntegracionBookingModule } from './integracion-booking/integracion-booking.module.js';
 import { ReservasModule } from './reservas/reservas.module.js';
 import { SeedModule } from './seed/seed.module.js';
 import { SucursalesModule } from './sucursales/sucursales.module.js';
@@ -36,6 +37,7 @@ import { VehiculosModule } from './vehiculos/vehiculos.module.js';
     ReservasModule,
     SeedModule,
     GdsAutosModule,
+    IntegracionBookingModule,
     AdminModule,
     CuentasModule,
     AuthJwtModule,

@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { bloqueadoOperativamente } from '../integracion-booking/booking.util.js';
+import { StockSyncService } from '../integracion-booking/stock-sync.service.js';
 import { PagosService } from '../pagos/pagos.service.js';
 import { Sucursal } from '../sucursales/sucursal.entity.js';
 import { Vehiculo } from '../vehiculos/vehiculo.entity.js';
@@ -15,6 +17,7 @@ export class ReservasService {
     private readonly repo: Repository<Reserva>,
     private readonly dataSource: DataSource,
     private readonly pagos: PagosService,
+    private readonly stock: StockSyncService,
   ) {}
 
   listar(email?: string, codigo?: string): Promise<Reserva[]> {
@@ -51,6 +54,10 @@ export class ReservasService {
       if (sucursalDevolucionId !== vehiculo.sucursalId) {
         const existe = await manager.existsBy(Sucursal, { id: sucursalDevolucionId });
         if (!existe) throw new BadRequestException(`La sucursal ${sucursalDevolucionId} no existe`);
+      }
+
+      if (bloqueadoOperativamente(vehiculo)) {
+        throw new ConflictException('El vehículo no está disponible: está en limpieza o mantenimiento');
       }
 
       const solapadas = await manager
@@ -91,13 +98,16 @@ export class ReservasService {
       return guardada.id;
     });
 
-    return this.findOne(id);
+    const reserva = await this.findOne(id);
+    this.stock.empujarEnSegundoPlano(reserva.vehiculoId, reserva.fechaRecogida, reserva.horaRecogida, false, 'reserva-marketplace');
+    return reserva;
   }
 
   async cancelar(id: number): Promise<Reserva> {
     const reserva = await this.findOne(id);
     if (reserva.estado !== 'CANCELADA') {
       await this.repo.update(id, { estado: 'CANCELADA' });
+      this.stock.empujarEnSegundoPlano(reserva.vehiculoId, reserva.fechaRecogida, reserva.horaRecogida, true, 'cancelacion-marketplace');
     }
     return this.findOne(id);
   }

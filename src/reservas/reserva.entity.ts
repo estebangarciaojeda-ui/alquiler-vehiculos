@@ -78,6 +78,40 @@ export class Reserva {
   @Column('varchar', { nullable: true })
   tarjetaUltimos4: string | null;
 
+  // ── Integración con Booking (contrato autos-openapi-v3) ───────────────
+  @Column('varchar', { default: 'MARKETPLACE' })
+  origen: string;
+
+  @Column('varchar', { default: 'BASICA' })
+  cobertura: string;
+
+  @Column('numeric', { precision: 10, scale: 2, default: 0, transformer: numericTransformer })
+  depositoGarantia: number;
+
+  @Column('jsonb', { nullable: true })
+  conductor: Record<string, unknown> | null;
+
+  @Column('jsonb', { nullable: true })
+  desglose: Record<string, unknown> | null;
+
+  @Column('timestamptz', { nullable: true })
+  checkinEn: Date | null;
+
+  @Column('timestamptz', { nullable: true })
+  entregadaEn: Date | null;
+
+  @Column('timestamptz', { nullable: true })
+  devueltaEn: Date | null;
+
+  @Column('int', { nullable: true })
+  kmSalida: number | null;
+
+  @Column('int', { nullable: true })
+  kmRetorno: number | null;
+
+  @Column('jsonb', { nullable: true })
+  reembolso: Record<string, unknown> | null;
+
   @CreateDateColumn()
   creadaEn: Date;
 }

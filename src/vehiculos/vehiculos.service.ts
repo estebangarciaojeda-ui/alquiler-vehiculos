@@ -47,6 +47,10 @@ export class VehiculosService {
         )`,
         { desde, hasta },
       );
+      // Autos en limpieza (cooldown de 2 h) o en mantenimiento no se ofrecen al buscar disponibilidad.
+      qb.andWhere(
+        `NOT (v.estadoOperativo = 'EN_MANTENIMIENTO' OR (v.estadoOperativo = 'EN_LIMPIEZA' AND v.disponibleDesde > NOW()))`,
+      );
     }
 
     qb.orderBy('v.precioPorDia', filtros.orden === 'precio_desc' ? 'DESC' : 'ASC').addOrderBy('v.id', 'ASC');

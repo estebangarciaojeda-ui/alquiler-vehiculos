@@ -13,7 +13,10 @@ const CUENTAS_DEMO = [
   { email: 'cliente3@correo.com', nombre: 'Cliente Tres', contrasena: 'cliente3' },
 ];
 
-type Datos = Omit<Vehiculo, 'id' | 'sucursal' | 'sucursalId'>;
+type Datos = Omit<
+  Vehiculo,
+  'id' | 'sucursal' | 'sucursalId' | 'estadoOperativo' | 'kilometrajeActual' | 'proximoMantenimientoKm' | 'disponibleDesde'
+>;
 
 const SUCURSALES = [
   { nombre: 'Aeropuerto Mariscal Sucre', ciudad: 'Quito', direccion: 'Aeropuerto Internacional Mariscal Sucre, Tababela', esAeropuerto: true },
