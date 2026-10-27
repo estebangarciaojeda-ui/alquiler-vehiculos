@@ -23,7 +23,7 @@ Dashboard → pestaña **Nodos** → vertical **Autos**:
 
 | # | Requisito | Implementación |
 |---|---|---|
-| 1 | gRPC `PushStockUpdate` ante cada cambio de flota | `stock-sync.service.ts`: reserva/cancelación (Booking y marketplace), limpieza, mantenimiento y fin de cooldown. Timestamp estrictamente creciente, `slot_id` `slot-YYYYMMDD-HHMM`, respaldo REST `POST /api/v3/inventory/stock` y circuit breaker. `POST /autos/inventario/sincronizar` reenvía toda la flota. |
+| 1 | gRPC `PushStockUpdate` ante cada cambio de flota | `stock-sync.service.ts`: reserva/cancelación (Booking y marketplace), limpieza, mantenimiento y fin de cooldown. Timestamp estrictamente creciente, `slot_id` `slot-YYYYMMDD-HHMM`, respaldo REST `POST /api/v3/inventory/push-stock` y circuit breaker. `POST /autos/inventario/sincronizar` reenvía toda la flota. |
 | 2 | `POST /reservas` (contrato v3) | `autos-b2b.controller.ts`; alias `/autos/reservas` y `/autos/orders/create`. Acepta el payload en inglés y los alias en español. |
 | 3 | Saga 409 | `409` con `code: VEHICLE_UNAVAILABLE` o `VEHICLE_IN_CLEANING_COOLDOWN` (RFC 7807). `422` (edad, fechas, payload) y `400` (idempotencia) **no** son 409. |
 | 4 | Cooldown 2 h | Devolución → `EN_LIMPIEZA` 120 min: excluido de `/autos`, búsquedas y reservas (también del marketplace); un temporizador lo libera y avisa a Booking. |
@@ -42,7 +42,9 @@ Además: máquina de 6 estados (`GET /autos/flota` con cronómetro del cooldown)
 |---|---|
 | `NODE_ID` | `service_id` del nodo (por defecto `NODE_AUT_AUTOSPOT`). |
 | `BOOKING_GRPC_HOST` | `host:puerto` gRPC de Booking (por defecto `rda1-backend-integracion-sistemas.onrender.com:50051`; puerto 443 usa TLS). |
-| `BOOKING_REST_URL` | Respaldo REST si gRPC no está disponible. |
+| `BOOKING_REST_URL` | Respaldo REST si gRPC no está disponible (Render solo expone HTTP, así que el puerto 50051 público suele no estar accesible). |
+| `BOOKING_API_KEY` | Clave de proveedor que Booking entregue; se envía como `X-Api-Key` en el respaldo REST. |
+| `BOOKING_REST_STOCK_PATH` | Ruta REST de stock (por defecto `/api/v3/inventory/push-stock`). |
 | `BOOKING_SYNC_ENABLED` | `false` desactiva el envío de stock. |
 | `TIENDA_AUTOS_API_KEY` | Clave `X-API-Key` para listar órdenes/eventos y, si se activa, las escrituras. |
 | `B2B_REQUIRE_API_KEY` | `true` exige admin o `X-API-Key` también en crear/cancelar/check-ins (por defecto abiertas para que Booking integre sin configuración previa). |

@@ -29,7 +29,7 @@ function rutaProto(): string {
 /**
  * Cliente del contrato inventory.proto: cada cambio de disponibilidad de un auto se notifica a
  * Booking con PushStockUpdate (gRPC, puerto 50051). Si el canal gRPC no está disponible (p. ej. un
- * host que solo expone HTTP) se usa el respaldo REST POST /api/v3/inventory/stock que indica la guía.
+ * host que solo expone HTTP) se usa el respaldo REST (POST /api/v3/inventory/push-stock, la ruta publicada en el OpenAPI de Booking).
  * Nunca hace fallar la operación de negocio que lo dispara.
  */
 @Injectable()
@@ -142,9 +142,11 @@ export class StockSyncService {
 
   private async viaRest(mensaje: Record<string, unknown>, errorGrpc?: string): Promise<ResultadoSync> {
     try {
-      const res = await fetch(`${this.restUrl}/api/v3/inventory/stock`, {
+      const ruta = process.env.BOOKING_REST_STOCK_PATH ?? '/api/v3/inventory/push-stock';
+      const clave = process.env.BOOKING_API_KEY;
+      const res = await fetch(`${this.restUrl}${ruta}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(clave ? { 'X-Api-Key': clave } : {}) },
         body: JSON.stringify({ ...mensaje, timestamp: Number(mensaje.timestamp) }),
         signal: AbortSignal.timeout(DEADLINE_MS),
       });
