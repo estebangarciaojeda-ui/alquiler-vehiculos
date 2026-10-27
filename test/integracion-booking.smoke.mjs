@@ -133,6 +133,9 @@ const rc2 = await http('POST', '/reservas', cuerpoReserva(autoC, sumarDias(60), 
 ok('tras cancelar, el auto vuelve a poder reservarse', rc2.status === 201);
 
 console.log('8. Mantenimiento y RBAC');
+const cabMant = { 'X-Role': 'MANTENIMIENTO', ...(API_KEY ? { 'X-API-Key': API_KEY } : {}) };
+// Deja el umbral en 10000 km para que la prueba no dependa del estado previo del auto.
+await http('POST', `/autos/${autoC}/mantenimiento/registro`, { tecnico_id: 'prep', kilometraje_registrado: 5000, nivel_combustible: 100, mantenimiento_realizado: true, nuevo_proximo_mantenimiento_km: 10000 }, cabMant);
 const bodyMant = { tecnico_id: 'tec-rosero-01', kilometraje_registrado: 10250, nivel_combustible: 100, condiciones_carroceria: 'Sin abolladuras', estado_neumaticos: 'BUENO', observaciones: 'Cambio de aceite' };
 ok('sin rol => 401', (await http('POST', `/autos/${autoC}/mantenimiento/registro`, bodyMant)).status === 401);
 ok('rol CLIENTE => 403', (await http('POST', `/autos/${autoC}/mantenimiento/registro`, bodyMant, { 'X-Role': 'CLIENTE' })).status === 403);
@@ -165,6 +168,27 @@ console.log('11. Regresión del marketplace existente');
 ok('GET /api/v1/vehiculos sigue funcionando', (await http('GET', '/api/v1/vehiculos')).status === 200);
 const mk = await http('GET', `/api/v1/vehiculos?desde=${sumarDias(81)}&hasta=${sumarDias(83)}`);
 ok('la búsqueda del marketplace excluye autos en limpieza', mk.status === 200 && !mk.json?.some((v) => `auto-${String(v.id).padStart(3, '0')}` === auto));
+
+console.log('12. Limpieza de los datos de prueba');
+const cabAdmin = { 'X-Role': 'ADMIN', ...(API_KEY ? { 'X-API-Key': API_KEY } : {}) };
+const reinicio = { tecnico_id: 'limpieza', kilometraje_registrado: 1500, nivel_combustible: 100, mantenimiento_realizado: true, nuevo_proximo_mantenimiento_km: 11500 };
+await http('POST', `/autos/${autoC}/mantenimiento/registro`, reinicio, cabMant);
+await http('POST', `/autos/${auto}/mantenimiento/registro`, reinicio, cabMant);
+await http('PATCH', `/autos/${auto}/estado`, { estado: 'DISPONIBLE' }, cabAdmin);
+await http('PUT', '/autos/promociones/contrato', { permite_promociones: true, porcentaje_descuento_maximo: 15 });
+if (process.env.ADMIN_PASSWORD) {
+  const login = await http('POST', '/admin/api/login', { usuario: process.env.ADMIN_USER ?? 'admin', contrasena: process.env.ADMIN_PASSWORD });
+  const cookie = login.headers.get('set-cookie')?.split(';')[0];
+  const todas = await http('GET', '/api/v1/reservas');
+  let borradas = 0;
+  for (const r of todas.json ?? []) {
+    if (['carlos.zambrano@example.com', 'ana@example.com'].includes(r.email)) {
+      await http('DELETE', `/api/v1/reservas/${r.id}`, undefined, { Cookie: cookie });
+      borradas++;
+    }
+  }
+  console.log(`  ${borradas} reservas de prueba eliminadas`);
+} else console.log('  (defina ADMIN_PASSWORD para borrar también las reservas de prueba)');
 
 console.log(`\n${total - fallos}/${total} pruebas correctas`);
 process.exit(fallos === 0 ? 0 : 1);
