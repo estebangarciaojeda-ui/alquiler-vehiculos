@@ -1,4 +1,4 @@
-import { Body, ConflictException, Controller, Get, NotFoundException, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, ConflictException, Controller, Get, HttpException, NotFoundException, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
@@ -7,6 +7,8 @@ import { CuentasService } from '../cuentas/cuentas.service.js';
 import { hashContrasena } from '../cuentas/password.util.js';
 import { GdsOrder } from '../gds-autos/entities/gds-order.entity.js';
 import { GdsWebhook } from '../gds-autos/entities/gds-webhook.entity.js';
+import { OrdenesB2bService } from '../integracion-booking/ordenes-b2b.service.js';
+import { ProblemaV3Exception } from '../integracion-booking/problema-v3.js';
 import { AdminAuthGuard } from './admin-auth.guard.js';
 import { ActualizarCuentaDto } from './dto/actualizar-cuenta.dto.js';
 import { ActualizarRolDto } from './dto/actualizar-rol.dto.js';
@@ -21,7 +23,23 @@ export class AdminDataController {
     @InjectRepository(GdsWebhook) private readonly webhooks: Repository<GdsWebhook>,
     @InjectRepository(Cuenta) private readonly cuentas: Repository<Cuenta>,
     private readonly cuentasService: CuentasService,
+    private readonly ordenesB2b: OrdenesB2bService,
   ) {}
+
+  /** El administrador confirma en el mostrador la entrega de llaves; si la reserva vino de Booking, se le notifica. */
+  @Post('reservas/:id/entrega')
+  async entregarReserva(@Param('id', ParseIntPipe) id: number, @Body() cuerpo: Record<string, unknown>) {
+    try {
+      const adminId = typeof cuerpo?.admin_id === 'string' && cuerpo.admin_id.trim() ? cuerpo.admin_id.trim() : 'operador-mostrador';
+      return (await this.ordenesB2b.entregarEnMostrador(String(id), cuerpo, adminId)).body;
+    } catch (error) {
+      if (error instanceof ProblemaV3Exception) {
+        const p = error.getResponse() as { detail?: string; title?: string };
+        throw new HttpException(p.detail ?? p.title ?? 'No se pudo registrar la entrega', error.getStatus());
+      }
+      throw error;
+    }
+  }
 
   @Get('cuentas')
   listarCuentas() {

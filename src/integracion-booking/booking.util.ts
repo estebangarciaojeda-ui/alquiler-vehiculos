@@ -424,3 +424,37 @@ export function normalizarSolicitudBusqueda(cuerpo: unknown, hoy: string): Resul
 /** Mismo slug que public/app.js para resolver public/img/autos/<marca-modelo>.jpg. */
 export const claveModelo = (marca: string, modelo: string): string =>
   sinAcentos(`${marca} ${modelo}`).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+export interface SolicitudCliente {
+  nombre: string;
+  email: string;
+  identificacion?: string;
+  telefono?: string;
+  licencia?: string;
+}
+
+/** Cuerpo de POST /api/v3/clientes: nombre y correo obligatorios; el resto se guarda si llega. */
+export function normalizarCliente(cuerpo: unknown): Resultado<SolicitudCliente> {
+  if (!esDic(cuerpo)) {
+    return { ok: false, codigo: 'INVALID_PAYLOAD', errores: [{ name: 'body', reason: 'Se esperaba un objeto JSON.' }] };
+  }
+  const errores: ErrorCampo[] = [];
+  const nombre = texto(primero(cuerpo, 'nombre', 'full_name'));
+  const email = texto(primero(cuerpo, 'email', 'correo'));
+  if (!nombre) errores.push({ name: 'nombre', reason: 'Obligatorio.' });
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errores.push({ name: 'email', reason: 'Correo válido obligatorio.' });
+  if (errores.length > 0) return { ok: false, codigo: 'INVALID_PAYLOAD', errores };
+  return {
+    ok: true,
+    valor: {
+      nombre: nombre as string,
+      email: (email as string).toLowerCase(),
+      identificacion: texto(primero(cuerpo, 'identificacion', 'cedula')),
+      telefono: texto(primero(cuerpo, 'telefono', 'phone')),
+      licencia: texto(primero(cuerpo, 'licencia', 'license_number')),
+    },
+  };
+}
+
+/** Identificador público del cliente: CLI-00007. */
+export const idCliente = (id: number): string => `CLI-${String(id).padStart(5, '0')}`;

@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { esErrorDeLlaveForanea } from '../common/db-errors.js';
+import { StockSyncService } from '../integracion-booking/stock-sync.service.js';
 import { Sucursal } from '../sucursales/sucursal.entity.js';
 import { ActualizarPrecioDto } from './dto/actualizar-precio.dto.js';
 import { BuscarVehiculosDto } from './dto/buscar-vehiculos.dto.js';
@@ -15,6 +16,7 @@ export class VehiculosService {
     private readonly repo: Repository<Vehiculo>,
     @InjectRepository(Sucursal)
     private readonly sucursalesRepo: Repository<Sucursal>,
+    private readonly sync: StockSyncService,
   ) {}
 
   async buscar(filtros: BuscarVehiculosDto): Promise<Vehiculo[]> {
@@ -76,6 +78,8 @@ export class VehiculosService {
   async crear(dto: CrearVehiculoDto): Promise<Vehiculo> {
     await this.verificarSucursal(dto.sucursalId);
     const guardado = await this.repo.save(this.repo.create(dto));
+    // Un auto nuevo entra al inventario de Booking con 1 unidad disponible.
+    this.sync.empujarAhoraEnSegundoPlano(guardado.id, true, 'vehiculo.creado');
     return this.findOne(guardado.id);
   }
 

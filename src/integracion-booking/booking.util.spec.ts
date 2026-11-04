@@ -11,6 +11,8 @@ import {
   fechaYSlotLocal,
   generarPnr,
   idPublico,
+  idCliente,
+  normalizarCliente,
   normalizarSolicitudBusqueda,
   normalizarSolicitudReserva,
   parsearIdPublico,
@@ -209,5 +211,22 @@ describe('cuerpos de la guía de socios (estilo plano)', () => {
       HOY,
     );
     expect(r).toMatchObject({ ok: true, valor: { vehiculoId: 1, recogida: '2026-12-01', devolucion: '2026-12-05', conductor: { full_name: 'Juan Pérez', email: 'juan@example.com', age: 30 } } });
+  });
+});
+
+describe('clientes del contrato v3.1', () => {
+  it('valida nombre y correo, y normaliza el correo', () => {
+    const r = normalizarCliente({ nombre: 'Ana Pérez', email: 'ANA@Example.com', identificacion: '1712345678', telefono: '0999999999', licencia: 'L-123' });
+    expect(r).toMatchObject({ ok: true, valor: { nombre: 'Ana Pérez', email: 'ana@example.com', identificacion: '1712345678', licencia: 'L-123' } });
+  });
+
+  it('rechaza cuerpos sin nombre o con correo inválido', () => {
+    expect(normalizarCliente({ email: 'a@b.co' })).toMatchObject({ ok: false, codigo: 'INVALID_PAYLOAD' });
+    expect(normalizarCliente({ nombre: 'X', email: 'no-es-correo' })).toMatchObject({ ok: false, codigo: 'INVALID_PAYLOAD' });
+    expect(normalizarCliente(null)).toMatchObject({ ok: false, codigo: 'INVALID_PAYLOAD' });
+  });
+
+  it('arma el client_id público', () => {
+    expect(idCliente(7)).toBe('CLI-00007');
   });
 });

@@ -32,3 +32,10 @@ services:
         value: https://rda1-backend-integracion-sistemas.onrender.com
       - key: TIENDA_AUTOS_API_KEY
         sync: false
+      # Booking Central en Azure (contrato v3.1): notificación de stock y check-in de entrega
+      - key: BOOKING_BASE_URL
+        value: https://booking-core-api.azurewebsites.net/api/v3
+      - key: BOOKING_REST_STOCK_URL
+        value: https://booking-core-api.azurewebsites.net/api/v3/inventory/stock
+      - key: BOOKING_API_KEY
+        sync: false

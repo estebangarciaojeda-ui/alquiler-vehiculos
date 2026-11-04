@@ -13,6 +13,7 @@ import {
   COOLDOWN_MINUTOS,
   diasEntre,
   enLimpiezaActiva,
+  generarCorrelationId,
   generarPnr,
   hoyEnEcuador,
   idPublico,
@@ -22,6 +23,7 @@ import {
   type ErrorCampo,
   type SolicitudReserva,
 } from './booking.util.js';
+import { ClientesService } from './clientes.service.js';
 import { EventosService } from './eventos.service.js';
 import { FlotaService } from './flota.service.js';
 import { ProblemaV3Exception } from './problema-v3.js';
@@ -55,6 +57,7 @@ export class OrdenesB2bService {
     private readonly sync: StockSyncService,
     private readonly eventos: EventosService,
     private readonly registro: RegistroService,
+    private readonly clientes: ClientesService,
   ) {}
 
   // ── Idempotencia ──────────────────────────────────────────────────────
@@ -370,6 +373,59 @@ export class OrdenesB2bService {
         },
       };
     });
+  }
+
+  /**
+   * Entrega confirmada por el administrador en el mostrador (panel web): registra el check-in de entrega y, si la orden
+   * vino de Booking, le notifica POST {BOOKING_BASE_URL}/reservas/{codigo}/checkin con estado CONFIRMADO_ASISTIDO.
+   */
+  async entregarEnMostrador(idOPnr: string, cuerpo: unknown, adminId: string): Promise<Salida> {
+    const ctx: Ctx = { correlationId: generarCorrelationId() };
+    const salida = await this.entregar(idOPnr, cuerpo, ctx);
+    const r = await this.buscarOrden(idOPnr);
+    const notificacion =
+      r.origen === 'BOOKING'
+        ? await this.notificarCheckin(r, dic(cuerpo), adminId, ctx)
+        : { enviada: false, detalle: 'Reserva propia del marketplace: Booking no la conoce, no se notifica.' };
+    return { ...salida, body: { ...dic(salida.body), notificacion_booking: notificacion } };
+  }
+
+  private async notificarCheckin(r: Reserva, b: Dic, adminId: string, ctx: Ctx): Promise<Dic> {
+    const base = (process.env.BOOKING_BASE_URL ?? 'https://booking-core-api.azurewebsites.net/api/v3').replace(/\/+$/, '');
+    const url = `${base}/reservas/${encodeURIComponent(r.codigo)}/checkin`;
+    const texto = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+    try {
+      const conductor = r.conductor ?? {};
+      const clientId = await this.clientes.asegurar({
+        nombre: texto(conductor.full_name) ?? r.nombreCliente,
+        email: texto(conductor.email) ?? r.email,
+        telefono: texto(conductor.phone),
+        licencia: texto(conductor.license_number),
+      });
+      const cuerpo = {
+        external_order_id: r.codigo,
+        client_id: clientId,
+        estado: 'CONFIRMADO_ASISTIDO',
+        admin_id: adminId,
+        fecha_checkin: (r.entregadaEn ?? new Date()).toISOString(),
+        observaciones: texto(b.observaciones) ?? 'Vehículo entregado físicamente con contrato y licencia firmada',
+      };
+      const clave = process.env.BOOKING_API_KEY;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Correlation-Id': ctx.correlationId, ...(clave ? { 'X-API-Key': clave } : {}) },
+        body: JSON.stringify(cuerpo),
+        signal: AbortSignal.timeout(8000),
+      });
+      const respuesta = await res.json().catch(() => null);
+      this.registro.registrar(res.ok ? 'info' : 'warn', 'booking.checkin', { correlation_id: ctx.correlationId, pnr: r.codigo, status: res.status });
+      return res.ok
+        ? { enviada: true, status: res.status, respuesta }
+        : { enviada: false, status: res.status, detalle: `Booking respondió HTTP ${res.status}.`, respuesta };
+    } catch (e) {
+      this.registro.registrar('warn', 'booking.checkin', { correlation_id: ctx.correlationId, pnr: r.codigo, error: (e as Error).message });
+      return { enviada: false, detalle: `No se pudo contactar a Booking: ${(e as Error).message}` };
+    }
   }
 
   async devolver(idOPnr: string, cuerpo: unknown, ctx: Ctx): Promise<Salida> {

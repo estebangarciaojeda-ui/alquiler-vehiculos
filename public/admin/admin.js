@@ -399,11 +399,36 @@ async function cargarReservas() {
         <td>${r.id}</td><td>${r.codigo}</td><td>${r.nombreCliente}<br><small>${r.email}</small></td>
         <td>${r.vehiculo?.marca ?? ''} ${r.vehiculo?.modelo ?? ''}</td>
         <td>${r.fechaRecogida} → ${r.fechaDevolucion}</td>
-        <td>${r.estado}</td>
-        <td><button data-borrar="${r.id}" class="peligro">Borrar</button></td>
+        <td>${esc(r.estado)}${r.origen === 'BOOKING' ? ' <small>(Booking)</small>' : ''}${r.entregadaEn ? '<br><small>Entregada</small>' : ''}</td>
+        <td>${
+          r.estado === 'CONFIRMADA' && !r.entregadaEn
+            ? `<button data-entregar="${r.id}" data-licencia="${esc(r.conductor?.license_number ?? '')}" data-km="${r.vehiculo?.kilometrajeActual ?? 0}">Confirmar entrega</button> `
+            : ''
+        }<button data-borrar="${r.id}" class="peligro">Borrar</button></td>
       </tr>`,
     )
     .join('');
+
+  // Check-in de entrega en el mostrador: registra la entrega y, si la reserva vino de Booking, se lo notifica.
+  tbody.querySelectorAll('[data-entregar]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const licencia = prompt('Número de licencia del conductor:', b.dataset.licencia);
+      if (!licencia?.trim()) return;
+      const km = prompt('Kilometraje de salida:', b.dataset.km);
+      if (km === null) return;
+      try {
+        const res = await api(`${ADMIN_API}/reservas/${b.dataset.entregar}/entrega`, {
+          method: 'POST',
+          body: JSON.stringify({ licencia_conducir: licencia.trim(), km_salida: Number(km) }),
+        });
+        const n = res.notificacion_booking;
+        alert(`Entrega registrada. ${n?.enviada ? 'Booking fue notificado (CONFIRMADO_ASISTIDO).' : `Booking NO fue notificado: ${n?.detalle ?? 'sin detalle'}`}`);
+      } catch (e) {
+        alert(e.message);
+      }
+      cargarReservas();
+    }),
+  );
 
   tbody.querySelectorAll('[data-borrar]').forEach((b) =>
     b.addEventListener('click', async () => {

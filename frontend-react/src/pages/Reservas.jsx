@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import api from '../api.js';
+import api, { adminApi } from '../api.js';
 import FotoVehiculo from '../components/FotoVehiculo.jsx';
 import Nav from '../components/Nav.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -36,6 +36,22 @@ export default function Reservas() {
     } catch {
       setError('No se pudo borrar la reserva.');
     }
+  }
+
+  // Check-in de entrega en el mostrador: registra la entrega y, si la reserva vino de Booking, se lo notifica.
+  async function confirmarEntrega(r) {
+    const licencia = prompt('Número de licencia del conductor:', r.conductor?.license_number ?? '');
+    if (!licencia?.trim()) return;
+    const km = prompt('Kilometraje de salida:', r.vehiculo?.kilometrajeActual ?? 0);
+    if (km === null) return;
+    try {
+      const { data } = await adminApi.post(`/reservas/${r.id}/entrega`, { licencia_conducir: licencia.trim(), km_salida: Number(km) });
+      const n = data.notificacion_booking;
+      alert(`Entrega registrada. ${n?.enviada ? 'Booking fue notificado (CONFIRMADO_ASISTIDO).' : `Booking NO fue notificado: ${n?.detalle ?? 'sin detalle'}`}`);
+    } catch (e) {
+      setError(e.response?.data?.message ?? 'No se pudo registrar la entrega.');
+    }
+    await cargar();
   }
 
   return (
@@ -81,8 +97,22 @@ export default function Reservas() {
                 <td>
                   {r.fechaRecogida} → {r.fechaDevolucion}
                 </td>
-                <td>{ETIQUETA_ESTADO[r.estado] ?? r.estado}</td>
                 <td>
+                  {ETIQUETA_ESTADO[r.estado] ?? r.estado}
+                  {r.origen === 'BOOKING' && <small className="text-muted"> (Booking)</small>}
+                  {r.entregadaEn && (
+                    <>
+                      <br />
+                      <small className="text-success">Entregada</small>
+                    </>
+                  )}
+                </td>
+                <td>
+                  {r.estado === 'CONFIRMADA' && !r.entregadaEn && (
+                    <button className="btn btn-sm btn-outline-primary me-1" onClick={() => confirmarEntrega(r)}>
+                      Confirmar entrega
+                    </button>
+                  )}
                   <button className="btn btn-sm btn-outline-danger" onClick={() => eliminar(r.id)}>
                     Borrar
                   </button>
