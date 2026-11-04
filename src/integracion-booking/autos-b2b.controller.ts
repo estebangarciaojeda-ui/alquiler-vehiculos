@@ -101,7 +101,7 @@ export class AutosB2bController {
     return this.ordenes.listar();
   }
 
-  @Post(['orders/create', 'reservas'])
+  @Post(['orders/create', 'orders', 'reservas'])
   async crear(@Req() req: Req, @Res({ passthrough: true }) res: Response, @Body() cuerpo: unknown, @Headers('idempotency-key') clave?: string) {
     return responder(res, await this.ordenes.crear(cuerpo, contexto(req, clave)));
   }

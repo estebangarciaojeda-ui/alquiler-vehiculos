@@ -267,8 +267,8 @@ export function normalizarSolicitudReserva(cuerpo: unknown, hoy: string): Result
   const vehiculoId = parsearIdPublico(primero(cuerpo, 'vehicle_id', 'auto_id', 'vehiculo_id', 'id'));
   if (vehiculoId === null) errores.push({ name: 'vehicle_id', reason: 'Obligatorio. Ej: auto-007.' });
 
-  const recogida = primero(cuerpo, 'pickup_date', 'fecha_recogida');
-  const devolucion = primero(cuerpo, 'dropoff_date', 'fecha_devolucion');
+  const recogida = primero(cuerpo, 'pickup_date', 'fecha_recogida', 'fecha_inicio');
+  const devolucion = primero(cuerpo, 'dropoff_date', 'fecha_devolucion', 'fecha_fin');
   if (!esFechaValida(recogida)) errores.push({ name: 'pickup_date', reason: 'Obligatorio, formato YYYY-MM-DD.' });
   if (!esFechaValida(devolucion)) errores.push({ name: 'dropoff_date', reason: 'Obligatorio, formato YYYY-MM-DD.' });
 
@@ -280,7 +280,19 @@ export function normalizarSolicitudReserva(cuerpo: unknown, hoy: string): Result
   const cobertura = normalizarCobertura(primero(cuerpo, 'coverage_type', 'tipo_cobertura', 'cobertura'));
   if (cobertura === null) errores.push({ name: 'coverage_type', reason: 'Valores: BASIC, TOTAL.' });
 
-  const crudoConductor = primero(cuerpo, 'driver', 'conductor');
+  // Cuerpo plano de la guía de socios (cliente_nombre, cliente_email…): se arma el conductor con valores por defecto.
+  const planoGuia = primero(cuerpo, 'cliente_nombre', 'cliente_email') !== undefined;
+  const crudoConductor =
+    primero(cuerpo, 'driver', 'conductor') ??
+    (planoGuia
+      ? {
+          full_name: primero(cuerpo, 'cliente_nombre'),
+          email: primero(cuerpo, 'cliente_email'),
+          phone: primero(cuerpo, 'cliente_telefono', 'telefono') ?? 'No indicado',
+          license_number: primero(cuerpo, 'cliente_licencia', 'licencia') ?? 'No indicada',
+          age: primero(cuerpo, 'cliente_edad', 'edad') ?? 30,
+        }
+      : undefined);
   const d: Dic = esDic(crudoConductor) ? crudoConductor : {};
   if (!esDic(crudoConductor)) errores.push({ name: 'driver', reason: 'Obligatorio.' });
 
@@ -354,14 +366,16 @@ export function normalizarSolicitudBusqueda(cuerpo: unknown, hoy: string): Resul
     return { ok: false, codigo: 'INVALID_PAYLOAD', errores: [{ name: 'body', reason: 'Se esperaba un objeto JSON.' }] };
   }
   const errores: ErrorCampo[] = [];
-  const lugar = texto(primero(cuerpo, 'pickup_location', 'lugar_recogida'));
+  // Estilo de la guía de socios (ciudad, fecha_inicio, fecha_fin): hora 10:00 por defecto y categorías ajenas = todas.
+  const estiloGuia = ['ciudad', 'fecha_inicio', 'fecha_fin'].some((k) => cuerpo[k] !== undefined);
+  const lugar = texto(primero(cuerpo, 'pickup_location', 'lugar_recogida', 'ciudad'));
   if (!lugar) errores.push({ name: 'pickup_location', reason: 'Obligatorio.' });
-  const recogida = primero(cuerpo, 'pickup_date', 'fecha_recogida');
-  const devolucion = primero(cuerpo, 'dropoff_date', 'fecha_devolucion');
+  const recogida = primero(cuerpo, 'pickup_date', 'fecha_recogida', 'fecha_inicio');
+  const devolucion = primero(cuerpo, 'dropoff_date', 'fecha_devolucion', 'fecha_fin');
   if (!esFechaValida(recogida)) errores.push({ name: 'pickup_date', reason: 'Obligatorio, formato YYYY-MM-DD.' });
   if (!esFechaValida(devolucion)) errores.push({ name: 'dropoff_date', reason: 'Obligatorio, formato YYYY-MM-DD.' });
-  const horaR = primero(cuerpo, 'pickup_time', 'hora_recogida');
-  const horaD = primero(cuerpo, 'dropoff_time', 'hora_devolucion');
+  const horaR = primero(cuerpo, 'pickup_time', 'hora_recogida') ?? (estiloGuia ? '10:00' : undefined);
+  const horaD = primero(cuerpo, 'dropoff_time', 'hora_devolucion') ?? (estiloGuia ? '10:00' : undefined);
   if (!esHoraValida(horaR)) errores.push({ name: 'pickup_time', reason: 'Obligatorio, formato HH:mm.' });
   if (!esHoraValida(horaD)) errores.push({ name: 'dropoff_time', reason: 'Obligatorio, formato HH:mm.' });
 
@@ -371,9 +385,11 @@ export function normalizarSolicitudBusqueda(cuerpo: unknown, hoy: string): Resul
     errores.push({ name: 'driver_age', reason: 'Debe ser un entero.' });
   }
 
-  const categoria = String(primero(cuerpo, 'category', 'categoria') ?? 'ALL').toUpperCase();
+  const CATEGORIAS = ['ALL', 'ECONOMICO', 'COMPACTO', 'SUV', 'PREMIUM', 'VAN'];
+  const categoriaCruda = String(primero(cuerpo, 'category', 'categoria') ?? 'ALL').toUpperCase();
+  const categoria = estiloGuia && !CATEGORIAS.includes(categoriaCruda) ? 'ALL' : categoriaCruda;
   const transmision = String(primero(cuerpo, 'transmission', 'transmision') ?? 'ALL').toUpperCase();
-  if (!['ALL', 'ECONOMICO', 'COMPACTO', 'SUV', 'PREMIUM', 'VAN'].includes(categoria)) {
+  if (!CATEGORIAS.includes(categoria)) {
     errores.push({ name: 'category', reason: 'Valores: ALL, ECONOMICO, COMPACTO, SUV, PREMIUM, VAN.' });
   }
   if (!['ALL', 'MANUAL', 'AUTOMATICO', 'AUTOMATICA'].includes(transmision)) {

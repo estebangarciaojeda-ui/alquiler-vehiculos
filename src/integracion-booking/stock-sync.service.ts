@@ -92,8 +92,10 @@ export class StockSyncService {
       slot_id: slotId(fecha, slot),
     };
 
-    let resultado = await this.viaGrpc(mensaje);
-    if (!resultado.ok && !resultado.codigo) resultado = await this.viaRest(mensaje, resultado.detalle);
+    // Si hay URL REST de stock (guía de socios en Azure) se usa ese canal; si no, gRPC con respaldo REST.
+    const urlGuia = process.env.BOOKING_REST_STOCK_URL;
+    let resultado = urlGuia ? await this.viaRestGuia(urlGuia, mensaje, motivo) : await this.viaGrpc(mensaje);
+    if (!urlGuia && !resultado.ok && !resultado.codigo) resultado = await this.viaRest(mensaje, resultado.detalle);
 
     if (resultado.ok || resultado.codigo) this.fallosSeguidos = 0;
     else {
@@ -138,6 +140,24 @@ export class StockSyncService {
         resolve({ ok: false, canal: 'grpc', detalle: (e as Error).message });
       }
     });
+  }
+
+  /** POST {item_id, available_units, date, reason} con X-API-Key, tal como lo describe la guía de socios de Booking. */
+  private async viaRestGuia(url: string, mensaje: Record<string, unknown>, motivo: string): Promise<ResultadoSync> {
+    try {
+      const clave = process.env.BOOKING_API_KEY;
+      const razon = /cancel|liber/i.test(motivo) ? 'ORDER_CANCELLED' : /reserva|orden|order|creada/i.test(motivo) ? 'ORDER_CREATED' : 'STOCK_UPDATED';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(clave ? { 'X-API-Key': clave } : {}) },
+        body: JSON.stringify({ item_id: mensaje.item_id, available_units: mensaje.available_units, date: mensaje.date, reason: razon }),
+        signal: AbortSignal.timeout(DEADLINE_MS),
+      });
+      if (res.ok) return { ok: true, canal: 'rest', codigo: 'OK' };
+      return { ok: false, canal: 'rest', detalle: `REST HTTP ${res.status}` };
+    } catch (e) {
+      return { ok: false, canal: 'rest', detalle: `REST: ${(e as Error).message}` };
+    }
   }
 
   private async viaRest(mensaje: Record<string, unknown>, errorGrpc?: string): Promise<ResultadoSync> {

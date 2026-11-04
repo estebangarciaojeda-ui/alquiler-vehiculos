@@ -191,3 +191,23 @@ describe('normalizarSolicitudBusqueda', () => {
     expect(normalizarSolicitudBusqueda({ pickup_date: '2026-11-15' }, HOY)).toMatchObject({ ok: false, codigo: 'INVALID_PAYLOAD' });
   });
 });
+
+describe('cuerpos de la guía de socios (estilo plano)', () => {
+  it('búsqueda con ciudad/fecha_inicio/fecha_fin/categoria SEDAN usa hora 10:00 y categoría ALL', () => {
+    const r = normalizarSolicitudBusqueda({ ciudad: 'Quito', fecha_inicio: '2026-11-20', fecha_fin: '2026-11-24', categoria: 'SEDAN' }, HOY);
+    expect(r).toMatchObject({ ok: true, valor: { lugarRecogida: 'Quito', recogida: '2026-11-20', devolucion: '2026-11-24', horaRecogida: '10:00', categoria: 'ALL' } });
+  });
+
+  it('el contrato oficial sigue exigiendo la hora de recogida', () => {
+    const r = normalizarSolicitudBusqueda({ pickup_location: 'Quito', pickup_date: '2026-11-20', dropoff_date: '2026-11-24' }, HOY);
+    expect(r).toMatchObject({ ok: false, codigo: 'INVALID_PAYLOAD' });
+  });
+
+  it('reserva con cliente_nombre/cliente_email arma el conductor y acepta auto_id', () => {
+    const r = normalizarSolicitudReserva(
+      { auto_id: 'auto-001', cliente_nombre: 'Juan Pérez', cliente_email: 'Juan@Example.com', fecha_inicio: '2026-12-01', fecha_fin: '2026-12-05', precio_total: 180 },
+      HOY,
+    );
+    expect(r).toMatchObject({ ok: true, valor: { vehiculoId: 1, recogida: '2026-12-01', devolucion: '2026-12-05', conductor: { full_name: 'Juan Pérez', email: 'juan@example.com', age: 30 } } });
+  });
+});
