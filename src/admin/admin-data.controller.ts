@@ -1,7 +1,8 @@
-import { Body, ConflictException, Controller, Get, HttpException, NotFoundException, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, ConflictException, Controller, Get, HttpException, NotFoundException, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
-import { QueryFailedError, Repository } from 'typeorm';
+import { Brackets, QueryFailedError, Repository } from 'typeorm';
+import { Reserva } from '../reservas/reserva.entity.js';
 import { Cuenta } from '../cuentas/cuenta.entity.js';
 import { CuentasService } from '../cuentas/cuentas.service.js';
 import { hashContrasena } from '../cuentas/password.util.js';
@@ -22,9 +23,55 @@ export class AdminDataController {
     @InjectRepository(GdsOrder) private readonly ordenes: Repository<GdsOrder>,
     @InjectRepository(GdsWebhook) private readonly webhooks: Repository<GdsWebhook>,
     @InjectRepository(Cuenta) private readonly cuentas: Repository<Cuenta>,
+    @InjectRepository(Reserva) private readonly reservas: Repository<Reserva>,
     private readonly cuentasService: CuentasService,
     private readonly ordenesB2b: OrdenesB2bService,
   ) {}
+
+  /**
+   * Buscador del mostrador: por código de reserva, identificación/cédula, correo o nombre (sin `q` lista las más recientes).
+   * Cada fila trae `estado_mostrador`: RESERVADO (pendiente de entrega), CONFIRMADO_ASISTIDO (llaves entregadas), COMPLETADA o CANCELADA.
+   */
+  @Get('reservas/buscar')
+  async buscarReservas(@Query('q') q?: string) {
+    const termino = (q ?? '').trim();
+    const qb = this.reservas.createQueryBuilder('r').leftJoinAndSelect('r.vehiculo', 'v').orderBy('r.id', 'DESC').take(100);
+    if (termino) {
+      const patron = `%${termino.toLowerCase()}%`;
+      const porCedula = await this.cuentas
+        .createQueryBuilder('c')
+        .select('c.email', 'email')
+        .where('LOWER(c.identificacion) LIKE :p', { p: patron })
+        .getRawMany<{ email: string }>();
+      const correos = porCedula.map((c) => c.email);
+      qb.where(
+        new Brackets((w) => {
+          w.where('LOWER(r.codigo) LIKE :p', { p: patron })
+            .orWhere('LOWER(r.email) LIKE :p', { p: patron })
+            .orWhere('LOWER(r.nombreCliente) LIKE :p', { p: patron })
+            .orWhere("LOWER(COALESCE(r.conductor->>'identificacion', '')) LIKE :p", { p: patron });
+          if (correos.length > 0) w.orWhere('LOWER(r.email) IN (:...correos)', { correos });
+        }),
+      );
+    }
+    const filas = await qb.getMany();
+    const emails = [...new Set(filas.map((r) => r.email.toLowerCase()))];
+    const cuentas = emails.length > 0 ? await this.cuentas.createQueryBuilder('c').where('LOWER(c.email) IN (:...emails)', { emails }).getMany() : [];
+    const porCorreo = new Map(cuentas.map((c) => [c.email.toLowerCase(), c]));
+    return filas.map((r) => {
+      const cuenta = porCorreo.get(r.email.toLowerCase());
+      let estadoMostrador = 'RESERVADO';
+      if (r.estado === 'CANCELADA') estadoMostrador = 'CANCELADA';
+      else if (r.devueltaEn) estadoMostrador = 'COMPLETADA';
+      else if (r.entregadaEn) estadoMostrador = 'CONFIRMADO_ASISTIDO';
+      return {
+        ...r,
+        estado_mostrador: estadoMostrador,
+        identificacion: cuenta?.identificacion ?? (r.conductor?.identificacion as string | undefined) ?? null,
+        client_id: cuenta ? `CLI-${String(cuenta.id).padStart(5, '0')}` : null,
+      };
+    });
+  }
 
   /** El administrador confirma en el mostrador la entrega de llaves; si la reserva vino de Booking, se le notifica. */
   @Post('reservas/:id/entrega')

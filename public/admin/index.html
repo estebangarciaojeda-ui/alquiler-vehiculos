@@ -57,6 +57,10 @@
         </section>
 
         <section id="tab-reservas" class="tab-panel" hidden>
+          <form id="form-buscar-reserva" class="acciones" style="display: flex; gap: 8px">
+            <input id="buscar-reserva" type="search" style="flex: 1" placeholder="Buscar por código de reserva, cédula/identificación o correo" />
+            <button type="submit">Buscar</button>
+          </form>
           <table>
             <thead><tr><th>Foto</th><th>ID</th><th>Código</th><th>Cliente</th><th>Vehículo</th><th>Fechas</th><th>Estado</th><th></th></tr></thead>
             <tbody id="tabla-reservas"></tbody>

@@ -4,19 +4,26 @@ import FotoVehiculo from '../components/FotoVehiculo.jsx';
 import Nav from '../components/Nav.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
-const ETIQUETA_ESTADO = { CONFIRMADA: 'Confirmada', CANCELADA: 'Cancelada' };
+const ETIQUETA_ESTADO = {
+  RESERVADO: 'RESERVADO (pendiente de entrega)',
+  CONFIRMADO_ASISTIDO: 'CONFIRMADO_ASISTIDO (llaves entregadas)',
+  COMPLETADA: 'Completada',
+  CANCELADA: 'Cancelada',
+};
 
 export default function Reservas() {
   const { auth, logout } = useAuth();
   const [reservas, setReservas] = useState([]);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(true);
+  const [busqueda, setBusqueda] = useState('');
 
-  async function cargar() {
+  async function cargar(q = busqueda) {
     setCargando(true);
     try {
-      const { data } = await api.get('/reservas');
+      const { data } = await adminApi.get('/reservas/buscar', { params: { q: q.trim() } });
       setReservas(data);
+      setError('');
     } catch {
       setError('No se pudo cargar la información.');
     } finally {
@@ -25,7 +32,7 @@ export default function Reservas() {
   }
 
   useEffect(() => {
-    cargar();
+    cargar('');
   }, []);
 
   async function eliminar(id) {
@@ -57,6 +64,36 @@ export default function Reservas() {
   return (
     <div className="container py-4">
       <Nav auth={auth} logout={logout} />
+
+      <form
+        className="d-flex gap-2 mb-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          cargar();
+        }}
+      >
+        <input
+          className="form-control"
+          placeholder="Buscar por código de reserva, cédula/identificación o correo"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+        />
+        <button className="btn btn-primary" type="submit">
+          Buscar
+        </button>
+        {busqueda && (
+          <button
+            className="btn btn-outline-secondary"
+            type="button"
+            onClick={() => {
+              setBusqueda('');
+              cargar('');
+            }}
+          >
+            Limpiar
+          </button>
+        )}
+      </form>
 
       {error && <div className="alert alert-danger">{error}</div>}
 
@@ -90,6 +127,12 @@ export default function Reservas() {
                   {r.nombreCliente}
                   <br />
                   <small className="text-muted">{r.email}</small>
+                  {r.identificacion && (
+                    <>
+                      <br />
+                      <small className="text-muted">C.I. {r.identificacion}</small>
+                    </>
+                  )}
                 </td>
                 <td>
                   {r.vehiculo?.marca} {r.vehiculo?.modelo}
@@ -98,19 +141,13 @@ export default function Reservas() {
                   {r.fechaRecogida} → {r.fechaDevolucion}
                 </td>
                 <td>
-                  {ETIQUETA_ESTADO[r.estado] ?? r.estado}
+                  {ETIQUETA_ESTADO[r.estado_mostrador] ?? r.estado_mostrador}
                   {r.origen === 'BOOKING' && <small className="text-muted"> (Booking)</small>}
-                  {r.entregadaEn && (
-                    <>
-                      <br />
-                      <small className="text-success">Entregada</small>
-                    </>
-                  )}
                 </td>
                 <td>
-                  {r.estado === 'CONFIRMADA' && !r.entregadaEn && (
-                    <button className="btn btn-sm btn-outline-primary me-1" onClick={() => confirmarEntrega(r)}>
-                      Confirmar entrega
+                  {r.estado_mostrador === 'RESERVADO' && (
+                    <button className="btn btn-sm btn-primary me-1" onClick={() => confirmarEntrega(r)}>
+                      Confirmar Entrega de Llaves / Check-in
                     </button>
                   )}
                   <button className="btn btn-sm btn-outline-danger" onClick={() => eliminar(r.id)}>

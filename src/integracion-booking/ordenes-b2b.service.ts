@@ -165,7 +165,24 @@ export class OrdenesB2bService {
     const sol = norm.valor;
     return this.conIdempotencia('create', ctx, sol, async () => {
       const id = await this.crearTransaccion(sol, ctx);
-      const orden = await this.reservas.findOneByOrFail({ id });
+      let orden = await this.reservas.findOneByOrFail({ id });
+
+      // El conductor de Booking queda registrado como cliente (sin duplicarse) y ligado a la reserva.
+      try {
+        const cli = await this.clientes.asegurarCuenta({
+          nombre: sol.conductor.full_name,
+          email: sol.conductor.email,
+          identificacion: sol.conductor.identificacion,
+          telefono: sol.conductor.phone,
+          licencia: sol.conductor.license_number,
+        });
+        if (cli) {
+          await this.reservas.update(id, { cuentaId: cli.cuentaId });
+          orden = await this.reservas.findOneByOrFail({ id });
+        }
+      } catch (e) {
+        this.logger.warn(`No se pudo ligar el cliente a la reserva ${orden.codigo}: ${(e as Error).message}`);
+      }
 
       // Booking debe ver 0 unidades en el turno de retiro; el evento queda en el outbox.
       this.sync.empujarEnSegundoPlano(orden.vehiculoId, orden.fechaRecogida, orden.horaRecogida, false, 'orden-confirmada');
@@ -399,6 +416,7 @@ export class OrdenesB2bService {
       const clientId = await this.clientes.asegurar({
         nombre: texto(conductor.full_name) ?? r.nombreCliente,
         email: texto(conductor.email) ?? r.email,
+        identificacion: texto(conductor.identificacion),
         telefono: texto(conductor.phone),
         licencia: texto(conductor.license_number),
       });

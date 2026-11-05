@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Cuenta } from '../cuentas/cuenta.entity.js';
+import { Reserva } from '../reservas/reserva.entity.js';
 import { GdsOrder } from '../gds-autos/entities/gds-order.entity.js';
 import { GdsWebhook } from '../gds-autos/entities/gds-webhook.entity.js';
 import { AdminAuthController } from './admin-auth.controller.js';
@@ -11,7 +12,7 @@ import { AdminDataController } from './admin-data.controller.js';
 // controladores de otros módulos (sucursales, vehículos, reservas).
 @Global()
 @Module({
-  imports: [TypeOrmModule.forFeature([GdsOrder, GdsWebhook, Cuenta])],
+  imports: [TypeOrmModule.forFeature([GdsOrder, GdsWebhook, Cuenta, Reserva])],
   controllers: [AdminAuthController, AdminDataController],
   providers: [AdminAuthGuard],
   exports: [AdminAuthGuard],

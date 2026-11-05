@@ -241,6 +241,7 @@ export interface Conductor {
   email: string;
   phone: string;
   license_number: string;
+  identificacion?: string;
   country_license: string;
   age: number;
   flight_number?: string;
@@ -290,6 +291,7 @@ export function normalizarSolicitudReserva(cuerpo: unknown, hoy: string): Result
           email: primero(cuerpo, 'cliente_email'),
           phone: primero(cuerpo, 'cliente_telefono', 'telefono') ?? 'No indicado',
           license_number: primero(cuerpo, 'cliente_licencia', 'licencia') ?? 'No indicada',
+          identificacion: primero(cuerpo, 'cliente_identificacion', 'identificacion', 'cedula'),
           age: primero(cuerpo, 'cliente_edad', 'edad') ?? 30,
         }
       : undefined);
@@ -341,6 +343,7 @@ export function normalizarSolicitudReserva(cuerpo: unknown, hoy: string): Result
         email: (email as string).toLowerCase(),
         phone: telefono as string,
         license_number: licencia as string,
+        identificacion: texto(primero(d, 'identificacion', 'cedula', 'document_number', 'id_number')),
         country_license: texto(primero(d, 'country_license')) ?? 'Ecuador',
         age: edadFinal,
         flight_number: texto(primero(d, 'flight_number')),

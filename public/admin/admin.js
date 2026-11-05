@@ -102,6 +102,11 @@ document.querySelectorAll('.tab-btn').forEach((btn) => {
   });
 });
 
+el('form-buscar-reserva')?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  cargarReservas();
+});
+
 function cargarTodo() {
   cargarSucursales();
   cargarVehiculos();
@@ -390,19 +395,20 @@ el('btn-nuevo-vehiculo').addEventListener('click', () => {
 // ── Reservas (solo lectura + cancelar/borrar) ────────────────────────
 
 async function cargarReservas() {
-  const lista = await api(`${API}/reservas`);
+  const q = el('buscar-reserva')?.value.trim() ?? '';
+  const lista = await api(`${ADMIN_API}/reservas/buscar?q=${encodeURIComponent(q)}`);
   const tbody = el('tabla-reservas');
   tbody.innerHTML = lista
     .map(
       (r) => `<tr>
         <td>${r.vehiculo ? fotoVehiculo(r.vehiculo) : ''}</td>
-        <td>${r.id}</td><td>${r.codigo}</td><td>${r.nombreCliente}<br><small>${r.email}</small></td>
+        <td>${r.id}</td><td>${r.codigo}</td><td>${esc(r.nombreCliente)}<br><small>${esc(r.email)}</small>${r.identificacion ? `<br><small>C.I. ${esc(r.identificacion)}</small>` : ''}</td>
         <td>${r.vehiculo?.marca ?? ''} ${r.vehiculo?.modelo ?? ''}</td>
         <td>${r.fechaRecogida} → ${r.fechaDevolucion}</td>
-        <td>${esc(r.estado)}${r.origen === 'BOOKING' ? ' <small>(Booking)</small>' : ''}${r.entregadaEn ? '<br><small>Entregada</small>' : ''}</td>
+        <td>${esc(r.estado_mostrador)}${r.origen === 'BOOKING' ? ' <small>(Booking)</small>' : ''}</td>
         <td>${
-          r.estado === 'CONFIRMADA' && !r.entregadaEn
-            ? `<button data-entregar="${r.id}" data-licencia="${esc(r.conductor?.license_number ?? '')}" data-km="${r.vehiculo?.kilometrajeActual ?? 0}">Confirmar entrega</button> `
+          r.estado_mostrador === 'RESERVADO'
+            ? `<button data-entregar="${r.id}" data-licencia="${esc(r.conductor?.license_number ?? '')}" data-km="${r.vehiculo?.kilometrajeActual ?? 0}">Confirmar Entrega de Llaves / Check-in</button> `
             : ''
         }<button data-borrar="${r.id}" class="peligro">Borrar</button></td>
       </tr>`,

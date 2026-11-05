@@ -39,6 +39,7 @@ export class ClientesService {
       ]);
     }
     const cuenta = await this.existente(email, identificacion);
+    this.registro.registrar('info', 'cliente.consultado', { email: email?.trim().toLowerCase(), identificacion: identificacion?.trim(), encontrado: !!cuenta });
     if (!cuenta) throw new ProblemaV3Exception(404, 'NOT_FOUND', 'Cliente no encontrado', 'No existe un cliente con esos datos.');
     return this.vista(cuenta);
   }
@@ -89,10 +90,15 @@ export class ClientesService {
   }
 
   /** Garantiza que el conductor de una orden de Booking exista como cliente y devuelve su client_id. */
-  async asegurar(datos: { nombre: string; email: string; telefono?: string; licencia?: string }): Promise<string> {
+  async asegurar(datos: { nombre: string; email: string; identificacion?: string; telefono?: string; licencia?: string }): Promise<string> {
+    return (await this.asegurarCuenta(datos))?.clientId ?? '';
+  }
+
+  /** Igual que `asegurar`, pero también devuelve el id interno de la cuenta para ligarla a la reserva. */
+  async asegurarCuenta(datos: { nombre: string; email: string; identificacion?: string; telefono?: string; licencia?: string }) {
     const norm = normalizarCliente(datos);
-    if (!norm.ok) return '';
+    if (!norm.ok) return null;
     const { cuenta } = await this.obtenerOCrear(norm.valor);
-    return idCliente(cuenta.id);
+    return { clientId: idCliente(cuenta.id), cuentaId: cuenta.id };
   }
 }
