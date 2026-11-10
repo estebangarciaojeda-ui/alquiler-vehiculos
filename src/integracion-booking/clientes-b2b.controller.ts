@@ -15,7 +15,7 @@ import { ProblemaV3Filter } from './problema-v3.js';
 @UseFilters(ProblemaV3Filter)
 @UseGuards(B2bAuthGuard)
 @UseInterceptors(TrazaInterceptor)
-@Controller('api/v3/clientes')
+@Controller(['api/v3/clientes', 'clientes'])
 export class ClientesB2bController {
   constructor(private readonly clientes: ClientesService) {}
 

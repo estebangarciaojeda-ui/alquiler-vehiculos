@@ -8,12 +8,13 @@ import { asegurarCorrelacion, ProblemaV3Exception } from './problema-v3.js';
 import { RegistroService } from './registro.service.js';
 
 /**
- * - escritura:     operaciones que Booking invoca (crear/cancelar/check-ins). Abiertas por defecto para
- *                  que la integración funcione; con B2B_REQUIRE_API_KEY=true exigen admin o X-API-Key.
+ * - publico:       health, catálogo y búsqueda (sin datos de clientes): no piden clave.
+ * - escritura:     (por defecto) crear/consultar/cancelar órdenes, check-ins y clientes: exigen admin o X-API-Key
+ *                  (401 si falta o es inválida). Solo se relaja con B2B_REQUIRE_API_KEY=false.
  * - admin_o_clave: datos sensibles (listado de órdenes, eventos): siempre admin o X-API-Key.
  * - mantenimiento: RBAC del contrato (cabecera X-Role = MANTENIMIENTO | ADMIN) o sesión admin.
  */
-export type ModoAcceso = 'escritura' | 'admin_o_clave' | 'mantenimiento';
+export type ModoAcceso = 'escritura' | 'admin_o_clave' | 'mantenimiento' | 'publico';
 const CLAVE_META = 'acceso-b2b';
 export const Acceso = (modo: ModoAcceso) => SetMetadata(CLAVE_META, modo);
 
@@ -37,10 +38,15 @@ export class B2bAuthGuard implements CanActivate {
     const esAdmin = await Promise.resolve(this.admin.canActivate(contexto)).then(() => true, () => false);
     if (esAdmin) return true;
 
-    const clave = process.env.TIENDA_AUTOS_API_KEY;
+    if (modo === 'publico') return true;
+
+    // Claves válidas: la propia (TIENDA_AUTOS_API_KEY) y la acordada con Booking (BOOKING_API_KEY).
+    const claves = [process.env.TIENDA_AUTOS_API_KEY, process.env.BOOKING_API_KEY].filter((c): c is string => !!c?.trim()).map((c) => c.trim());
     const recibida = req.headers['x-api-key'];
-    const claveOk = !!clave && typeof recibida === 'string' && igual(recibida, clave);
-    const exigirClave = /^(1|true)$/i.test(process.env.B2B_REQUIRE_API_KEY ?? '');
+    const claveOk = typeof recibida === 'string' && claves.some((c) => igual(recibida.trim(), c));
+    // La clave se exige por defecto en toda operación que no sea pública. Solo se relaja con B2B_REQUIRE_API_KEY=false
+    // o si no hay ninguna clave configurada (para no dejar el servicio inaccesible por una mala configuración).
+    const exigirClave = claves.length > 0 && !/^(0|false)$/i.test(process.env.B2B_REQUIRE_API_KEY ?? '');
 
     if (modo === 'admin_o_clave') {
       if (claveOk) return true;

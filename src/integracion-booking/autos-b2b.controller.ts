@@ -43,11 +43,13 @@ export class AutosB2bController {
   ) {}
 
   @Get('health')
+  @Acceso('publico')
   salud() {
     return this.flota.salud();
   }
 
   @Get('promociones/contrato')
+  @Acceso('publico')
   contratoPromo() {
     return this.flota.obtenerContratoPromo();
   }
@@ -65,6 +67,7 @@ export class AutosB2bController {
   }
 
   @Get()
+  @Acceso('publico')
   catalogo(@Req() req: Request, @Query('category') categoria?: string, @Query('transmission') transmision?: string, @Query('limit') limit?: string) {
     const n = Math.min(Math.max(parseInt(limit ?? '100', 10) || 100, 1), 200);
     return this.flota.catalogo({ categoria: categoria?.toUpperCase(), transmision: transmision?.toUpperCase(), limit: n }, baseUrl(req));
@@ -72,6 +75,7 @@ export class AutosB2bController {
 
   @Post('search')
   @HttpCode(200)
+  @Acceso('publico')
   buscar(@Req() req: Request, @Body() cuerpo: unknown) {
     const norm = normalizarSolicitudBusqueda(cuerpo, hoyEnEcuador());
     if (!norm.ok) {
@@ -82,6 +86,7 @@ export class AutosB2bController {
   }
 
   @Get('flota')
+  @Acceso('publico')
   verFlota(@Req() req: Request) {
     return this.flota.flota(baseUrl(req));
   }
@@ -97,8 +102,8 @@ export class AutosB2bController {
 
   @Get('orders')
   @Acceso('admin_o_clave')
-  listarOrdenes() {
-    return this.ordenes.listar();
+  listarOrdenes(@Query('idempotency_key') idempotencyKey?: string) {
+    return idempotencyKey?.trim() ? this.ordenes.buscarPorIdempotencia(idempotencyKey) : this.ordenes.listar();
   }
 
   @Post(['orders/create', 'orders', 'reservas'])
@@ -157,11 +162,13 @@ export class AutosB2bController {
   }
 
   @Get(':id/coberturas')
+  @Acceso('publico')
   coberturas(@Param('id') id: string) {
     return this.flota.coberturas(id);
   }
 
   @Get(':id')
+  @Acceso('publico')
   detalle(@Req() req: Request, @Param('id') id: string) {
     return this.flota.detalle(id, baseUrl(req));
   }
@@ -181,6 +188,7 @@ export class AutosB2bRaizController {
   ) {}
 
   @Get(['health', 'api/v3/health'])
+  @Acceso('publico')
   salud() {
     return this.flota.salud();
   }

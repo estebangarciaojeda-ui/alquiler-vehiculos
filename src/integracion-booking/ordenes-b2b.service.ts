@@ -63,21 +63,39 @@ export class OrdenesB2bService {
   // ── Idempotencia ──────────────────────────────────────────────────────
 
   /** Misma Idempotency-Key + misma petición => misma respuesta sin repetir efectos; distinta petición => 400. */
+  private readonly enVuelo = new Map<string, { hash: string; promesa: Promise<Salida> }>();
+
+  private conflictoIdempotencia(): ProblemaV3Exception {
+    return new ProblemaV3Exception(400, 'IDEMPOTENCY_CONFLICT', 'Conflicto de idempotencia', 'La Idempotency-Key ya fue usada con una petición distinta.');
+  }
+
   private async conIdempotencia(operacion: string, ctx: Ctx, huella: unknown, fn: () => Promise<Salida>): Promise<Salida> {
     if (!ctx.idempotencyKey) return fn();
     const clave = `autos3:${operacion}:${ctx.idempotencyKey}`;
     const hash = createHash('sha256').update(JSON.stringify(huella)).digest('hex');
+
+    // Reintentos simultáneos con la misma clave: esperan al primero y reciben su misma respuesta.
+    const activa = this.enVuelo.get(clave);
+    if (activa) {
+      if (activa.hash !== hash) throw this.conflictoIdempotencia();
+      const salida = await activa.promesa;
+      this.registro.registrar('info', 'idempotencia.replay', { correlation_id: ctx.correlationId, idempotency_key: ctx.idempotencyKey, operacion });
+      return { ...salida, replay: true };
+    }
+    const promesa = this.ejecutarIdempotente(clave, hash, operacion, ctx, fn);
+    this.enVuelo.set(clave, { hash, promesa });
+    try {
+      return await promesa;
+    } finally {
+      this.enVuelo.delete(clave);
+    }
+  }
+
+  private async ejecutarIdempotente(clave: string, hash: string, operacion: string, ctx: Ctx, fn: () => Promise<Salida>): Promise<Salida> {
     const previa = await this.idem.findOneBy({ clave });
     if (previa) {
       const guardada = previa.respuesta as { hash: string; status: number; body: unknown };
-      if (guardada.hash !== hash) {
-        throw new ProblemaV3Exception(
-          400,
-          'IDEMPOTENCY_CONFLICT',
-          'Conflicto de idempotencia',
-          'La Idempotency-Key ya fue usada con una petición distinta.',
-        );
-      }
+      if (guardada.hash !== hash) throw this.conflictoIdempotencia();
       this.registro.registrar('info', 'idempotencia.replay', { correlation_id: ctx.correlationId, idempotency_key: ctx.idempotencyKey, operacion });
       return { status: guardada.status, body: guardada.body, replay: true };
     }
@@ -149,6 +167,14 @@ export class OrdenesB2bService {
     return this.respuestaOrden(await this.buscarOrden(idOPnr));
   }
 
+  /** Recuperación tras un timeout: devuelve únicamente la orden creada con esa Idempotency-Key (404 si no hay). */
+  async buscarPorIdempotencia(idempotencyKey: string) {
+    const previa = await this.idem.findOneBy({ clave: `autos3:create:${idempotencyKey.trim().slice(0, 100)}` });
+    const orden = (previa?.respuesta as { body?: { order_id?: string } } | undefined)?.body?.order_id;
+    if (!orden) throw new ProblemaV3Exception(404, 'NOT_FOUND', 'Orden no encontrada', 'No hay ninguna orden creada con esa Idempotency-Key.');
+    return this.obtener(orden);
+  }
+
   async listar() {
     const filas = await this.reservas.find({ order: { creadaEn: 'DESC', id: 'DESC' }, take: 200 });
     return filas.map((r) => this.respuestaOrden(r));
@@ -157,6 +183,11 @@ export class OrdenesB2bService {
   // ── Crear ─────────────────────────────────────────────────────────────
 
   async crear(cuerpo: unknown, ctx: Ctx): Promise<Salida> {
+    if (!ctx.idempotencyKey) {
+      throw new ProblemaV3Exception(400, 'MISSING_IDEMPOTENCY_KEY', 'Falta Idempotency-Key', 'La cabecera Idempotency-Key es obligatoria al crear una orden.', [
+        { name: 'Idempotency-Key', reason: 'Obligatoria (UUID recomendado).' },
+      ]);
+    }
     const norm = normalizarSolicitudReserva(cuerpo, hoyEnEcuador());
     if (!norm.ok) {
       const titulos = { INVALID_PAYLOAD: 'Petición inválida', INVALID_DATES: 'Fechas inválidas', DRIVER_UNDERAGE: 'Conductor menor de 18 años' } as const;

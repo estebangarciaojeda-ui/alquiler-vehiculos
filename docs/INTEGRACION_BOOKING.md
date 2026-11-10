@@ -46,8 +46,8 @@ Además: máquina de 6 estados (`GET /autos/flota` con cronómetro del cooldown)
 | `BOOKING_API_KEY` | Clave de proveedor que Booking entregue; se envía como `X-Api-Key` en el respaldo REST. |
 | `BOOKING_REST_STOCK_PATH` | Ruta REST de stock (por defecto `/api/v3/inventory/push-stock`). |
 | `BOOKING_SYNC_ENABLED` | `false` desactiva el envío de stock. |
-| `TIENDA_AUTOS_API_KEY` | Clave `X-API-Key` para listar órdenes/eventos y, si se activa, las escrituras. |
-| `B2B_REQUIRE_API_KEY` | `true` exige admin o `X-API-Key` también en crear/cancelar/check-ins (por defecto abiertas para que Booking integre sin configuración previa). |
+| `TIENDA_AUTOS_API_KEY` / `BOOKING_API_KEY` | Claves `X-API-Key` válidas. Se exigen en crear/consultar/cancelar órdenes, check-ins y `/api/v3/clientes` (401 si falta o es inválida). Health, catálogo y búsqueda son públicos. |
+| `B2B_REQUIRE_API_KEY` | Por defecto la clave se exige; `false` la desactiva (solo para desarrollo). La `Idempotency-Key` es obligatoria al crear una orden (400 `MISSING_IDEMPOTENCY_KEY`); `GET /autos/orders?idempotency_key=<clave>` devuelve solo esa orden (404 si no existe). |
 | `PUBLIC_BASE_URL` | Base de las URLs de fotos si hay un proxy distinto al host recibido. |
 | `LOG_DIR` | Carpeta del log físico (por defecto `./logs`). |
 

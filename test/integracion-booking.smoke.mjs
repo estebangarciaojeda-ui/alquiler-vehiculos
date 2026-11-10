@@ -10,7 +10,11 @@ let fallos = 0;
 let total = 0;
 
 async function http(metodo, ruta, cuerpo, cabeceras = {}) {
-  const opciones = { method: metodo, headers: { 'Content-Type': 'application/json', ...cabeceras }, signal: AbortSignal.timeout(60_000) };
+  // Por defecto se envía X-API-Key (si hay API_KEY); pasar { 'X-API-Key': null } para probar una petición sin clave.
+  const porDefecto = API_KEY ? { 'X-API-Key': API_KEY } : {};
+  const headers = { 'Content-Type': 'application/json', ...porDefecto, ...cabeceras };
+  for (const k of Object.keys(headers)) if (headers[k] === null) delete headers[k];
+  const opciones = { method: metodo, headers, signal: AbortSignal.timeout(60_000) };
   if (cuerpo !== undefined) opciones.body = JSON.stringify(cuerpo);
   const res = await fetch(BASE + ruta, opciones);
   const texto = await res.text();
@@ -85,10 +89,10 @@ ok('mismo auto y fechas con otra llave => 409 VEHICLE_UNAVAILABLE (Saga LIFO)', 
 ok('el 409 trae type, title, detail, instance y correlation_id', !!r2.json?.type && !!r2.json?.title && !!r2.json?.detail && !!r2.json?.instance && !!r2.json?.correlation_id);
 const busq2 = await http('POST', '/autos/search', { pickup_location: 'UIO', pickup_date: desde, pickup_time: '10:00', dropoff_date: hasta, dropoff_time: '10:00' });
 ok('el auto reservado ya no aparece en la búsqueda de esas fechas', !busq2.json?.data?.some((a) => a.vehicle_id === auto));
-ok('conductor < 18 => 422 DRIVER_UNDERAGE (sin Saga)', (await http('POST', '/reservas', cuerpoReserva('auto-002', desde, hasta, { driver: { ...conductor, age: 16 } }))).json?.code === 'DRIVER_UNDERAGE');
-ok('fechas invertidas => 422 INVALID_DATES', (await http('POST', '/reservas', cuerpoReserva('auto-002', hasta, desde))).json?.code === 'INVALID_DATES');
-ok('cuerpo sin driver => 422 INVALID_PAYLOAD con invalid_params', (await http('POST', '/reservas', { vehicle_id: 'auto-002', pickup_date: desde, dropoff_date: hasta })).json?.invalid_params?.length > 0);
-const esp = await http('POST', '/autos/reservas', { auto_id: 'auto-003', fecha_recogida: desde, fecha_devolucion: hasta, cobertura: 'TOTAL', conductor: { nombre: 'Ana Ruiz', correo: 'ana@example.com', telefono: '0999999999', licencia_conducir: 'L123', edad: 30 } });
+ok('conductor < 18 => 422 DRIVER_UNDERAGE (sin Saga)', (await http('POST', '/reservas', cuerpoReserva('auto-002', desde, hasta, { driver: { ...conductor, age: 16 } }), { 'Idempotency-Key': randomUUID() })).json?.code === 'DRIVER_UNDERAGE');
+ok('fechas invertidas => 422 INVALID_DATES', (await http('POST', '/reservas', cuerpoReserva('auto-002', hasta, desde), { 'Idempotency-Key': randomUUID() })).json?.code === 'INVALID_DATES');
+ok('cuerpo sin driver => 422 INVALID_PAYLOAD con invalid_params', (await http('POST', '/reservas', { vehicle_id: 'auto-002', pickup_date: desde, dropoff_date: hasta }, { 'Idempotency-Key': randomUUID() })).json?.invalid_params?.length > 0);
+const esp = await http('POST', '/autos/reservas', { auto_id: 'auto-003', fecha_recogida: desde, fecha_devolucion: hasta, cobertura: 'TOTAL', conductor: { nombre: 'Ana Ruiz', correo: 'ana@example.com', telefono: '0999999999', licencia_conducir: 'L123', edad: 30 } }, { 'Idempotency-Key': randomUUID() });
 ok('tolera alias en español (conductor, fecha_recogida, cobertura)', esp.status === 201 && esp.json?.tipo_cobertura === 'TOTAL', `status ${esp.status}`);
 
 console.log('5. Consulta de orden');
@@ -122,6 +126,7 @@ ok('ni en la búsqueda pública', !busqCd.json?.data?.some((a) => a.vehicle_id =
 
 console.log('7. Cancelación / compensación Saga');
 const autoC = busq.json.data[1].vehicle_id;
+const autoD = busq.json.data[2].vehicle_id; // vehículo sin uso previo para las pruebas de autenticación/idempotencia
 const rc = await http('POST', '/reservas', cuerpoReserva(autoC, sumarDias(60), sumarDias(62)), { 'Idempotency-Key': randomUUID() });
 const pnrC = rc.json?.pnr;
 const ck = randomUUID();
@@ -151,8 +156,35 @@ ok('PUT contrato => 200 y persiste', put.status === 200 && put.json?.contrato?.p
 ok('PUT con porcentaje 150 => 400', (await http('PUT', '/autos/promociones/contrato', { permite_promociones: true, porcentaje_descuento_maximo: 150 })).status === 400);
 
 console.log('10. Eventos (Outbox) y datos sensibles');
-ok('GET /autos/eventos sin credenciales => 401', (await http('GET', '/autos/eventos')).status === 401);
-ok('GET /autos/orders sin credenciales => 401', (await http('GET', '/autos/orders')).status === 401);
+const SIN = { 'X-API-Key': null };
+ok('GET /autos/eventos sin credenciales => 401', (await http('GET', '/autos/eventos', undefined, SIN)).status === 401);
+ok('GET /autos/orders sin credenciales => 401', (await http('GET', '/autos/orders', undefined, SIN)).status === 401);
+
+console.log('10b. Autenticación X-API-Key e Idempotency-Key obligatoria');
+const MALA = { 'X-API-Key': 'clave-incorrecta' };
+const cuerpoAuth = cuerpoReserva(autoD, sumarDias(120), sumarDias(122));
+const cuerpoCarrera = cuerpoReserva(autoD, sumarDias(130), sumarDias(132));
+ok('crear sin clave => 401', (await http('POST', '/autos/orders/create', cuerpoAuth, { ...SIN, 'Idempotency-Key': randomUUID() })).status === 401);
+ok('crear con clave inválida => 401', (await http('POST', '/autos/orders/create', cuerpoAuth, { ...MALA, 'Idempotency-Key': randomUUID() })).status === 401);
+ok('consultar orden sin clave => 401', (await http('GET', `/autos/orders/${pnr}`, undefined, SIN)).status === 401);
+const estadoAntes = (await http('GET', `/autos/orders/${pnr}`)).json?.status;
+ok('cancelar sin clave => 401 (y la orden no cambia)', (await http('POST', `/autos/orders/${pnr}/cancel`, {}, { ...SIN, 'Idempotency-Key': randomUUID() })).status === 401 && (await http('GET', `/autos/orders/${pnr}`)).json?.status === estadoAntes && estadoAntes !== 'CANCELLED');
+ok('check-in sin clave => 401', (await http('POST', `/autos/reservas/${pnr}/checkin`, { documento: 'x' }, { ...SIN, 'Idempotency-Key': randomUUID() })).status === 401);
+ok('clientes: GET sin clave => 401', (await http('GET', '/api/v3/clientes?email=a@b.co', undefined, SIN)).status === 401);
+ok('clientes: POST sin clave => 401', (await http('POST', '/api/v3/clientes', { nombre: 'X', email: 'x@y.co' }, SIN)).status === 401);
+ok('health y búsqueda siguen públicos', (await http('GET', '/autos/health', undefined, SIN)).status === 200 && (await http('POST', '/autos/search', { pickup_location: 'Quito', pickup_date: sumarDias(120), dropoff_date: sumarDias(122) }, SIN)).status !== 401);
+const sinLlave = await http('POST', '/autos/orders/create', cuerpoAuth);
+ok('crear sin Idempotency-Key => 400', sinLlave.status === 400 && sinLlave.json?.code === 'MISSING_IDEMPOTENCY_KEY', JSON.stringify(sinLlave.json));
+const llaveRec = randomUUID();
+const creada = await http('POST', '/autos/orders/create', cuerpoAuth, { 'Idempotency-Key': llaveRec });
+ok('crear con Idempotency-Key => 201', creada.status === 201, JSON.stringify(creada.json));
+const rec = await http('GET', `/autos/orders?idempotency_key=${llaveRec}`);
+ok('GET /autos/orders?idempotency_key devuelve solo esa orden', rec.status === 200 && !Array.isArray(rec.json) && rec.json?.pnr === creada.json?.pnr, JSON.stringify(rec.json).slice(0, 150));
+ok('idempotency_key desconocida => 404', (await http('GET', `/autos/orders?idempotency_key=${randomUUID()}`)).status === 404);
+const llaveCarrera = randomUUID();
+const carrera = await Promise.all(Array.from({ length: 10 }, () => http('POST', '/autos/orders/create', cuerpoCarrera, { 'Idempotency-Key': llaveCarrera })));
+ok('10 envíos simultáneos con la misma clave => una sola orden', new Set(carrera.map((x) => x.json?.pnr)).size === 1 && carrera.every((x) => x.status === 201), JSON.stringify(carrera.map((x) => x.status)));
+for (const p of [creada.json?.pnr, carrera[0]?.json?.pnr]) if (p) await http('POST', `/autos/orders/${p}/cancel`, {}, { 'Idempotency-Key': randomUUID() });
 if (API_KEY) {
   const ev = await http('GET', '/autos/eventos?limit=50', undefined, { 'X-API-Key': API_KEY });
   const tipos = ev.json?.events?.map((e) => e.type) ?? [];
