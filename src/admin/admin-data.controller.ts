@@ -29,7 +29,7 @@ export class AdminDataController {
   ) {}
 
   /**
-   * Buscador del mostrador: por código de reserva, identificación/cédula, correo o nombre (sin `q` lista las más recientes), paginado con `page` y `limit`.
+   * Buscador del mostrador: por código de reserva, identificación/cédula, correo o nombre (sin `q` lista primero lo que requiere acción y después las más recientes), paginado con `page` y `limit`.
    * Cada fila trae `estado_mostrador`: RESERVADO (pendiente de entrega), CONFIRMADO_ASISTIDO (llaves entregadas), COMPLETADA o CANCELADA.
    */
   @Get('reservas/buscar')
@@ -41,9 +41,7 @@ export class AdminDataController {
       .createQueryBuilder('r')
       .leftJoinAndSelect('r.vehiculo', 'v')
       .leftJoinAndSelect('r.sucursalRecogida', 'sr')
-      .orderBy('r.id', 'DESC')
-      .skip((pagina - 1) * tam)
-      .take(tam);
+      .orderBy('r.id', 'DESC');
     if (termino) {
       const patron = `%${termino.toLowerCase()}%`;
       const porCedula = await this.cuentas
@@ -62,19 +60,35 @@ export class AdminDataController {
         }),
       );
     }
-    const [filas, total] = await qb.getManyAndCount();
+    const todas = await qb.getMany();
+
+    const estadoDe = (r: Reserva): string => {
+      if (r.estado === 'CANCELADA') return 'CANCELADA';
+      if (r.devueltaEn) return 'COMPLETADA';
+      if (r.entregadaEn) return 'CONFIRMADO_ASISTIDO';
+      return 'RESERVADO';
+    };
+    // Lo que necesita acción del operador va primero: entregar llaves, recibir el auto o habilitarlo tras la limpieza.
+    // El resto (canceladas y completadas) queda después, de la más reciente a la más antigua.
+    const ahora = Date.now();
+    const requiereAccion = (r: Reserva): boolean => {
+      const e = estadoDe(r);
+      if (e === 'RESERVADO' || e === 'CONFIRMADO_ASISTIDO') return true;
+      return e === 'COMPLETADA' && r.vehiculo?.estadoOperativo === 'EN_LIMPIEZA' && !!r.vehiculo?.disponibleDesde && r.vehiculo.disponibleDesde.getTime() > ahora;
+    };
+    const ordenadas = [...todas].sort((x, y) => Number(requiereAccion(y)) - Number(requiereAccion(x)) || y.id - x.id);
+    const total = ordenadas.length;
+    const filas = ordenadas.slice((pagina - 1) * tam, pagina * tam);
+
     const emails = [...new Set(filas.map((r) => r.email.toLowerCase()))];
     const cuentas = emails.length > 0 ? await this.cuentas.createQueryBuilder('c').where('LOWER(c.email) IN (:...emails)', { emails }).getMany() : [];
     const porCorreo = new Map(cuentas.map((c) => [c.email.toLowerCase(), c]));
     const items = filas.map((r) => {
       const cuenta = porCorreo.get(r.email.toLowerCase());
-      let estadoMostrador = 'RESERVADO';
-      if (r.estado === 'CANCELADA') estadoMostrador = 'CANCELADA';
-      else if (r.devueltaEn) estadoMostrador = 'COMPLETADA';
-      else if (r.entregadaEn) estadoMostrador = 'CONFIRMADO_ASISTIDO';
       return {
         ...r,
-        estado_mostrador: estadoMostrador,
+        estado_mostrador: estadoDe(r),
+        requiere_accion: requiereAccion(r),
         identificacion: (r.conductor?.identificacion as string | undefined) ?? cuenta?.identificacion ?? null,
         client_id: cuenta ? `CLI-${String(cuenta.id).padStart(5, '0')}` : null,
       };
