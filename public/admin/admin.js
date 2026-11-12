@@ -300,6 +300,18 @@ async function cargarSucursales() {
       });
     }),
   );
+  tbody.querySelectorAll('[data-cancelar]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      if (!confirm(`¿Cancelar la reserva ${b.dataset.codigo}? Se libera el auto y se procesa el reembolso.`)) return;
+      try {
+        await api(`${ADMIN_API}/reservas/${b.dataset.cancelar}/cancelar`, { method: 'POST', body: JSON.stringify({ motivo: 'Cancelada por el administrador' }) });
+      } catch (e) {
+        alert(e.message);
+      }
+      cargarReservas();
+    }),
+  );
+
   // Check-in de devolución: km de retorno y combustible; el auto pasa 2 h a limpieza.
   tbody.querySelectorAll('[data-devolver]').forEach((b) =>
     b.addEventListener('click', async () => {
@@ -416,7 +428,8 @@ el('btn-nuevo-vehiculo').addEventListener('click', () => {
 
 async function cargarReservas() {
   const q = el('buscar-reserva')?.value.trim() ?? '';
-  const lista = await api(`${ADMIN_API}/reservas/buscar?q=${encodeURIComponent(q)}`);
+  const { items: lista, total } = await api(`${ADMIN_API}/reservas/buscar?q=${encodeURIComponent(q)}&limit=100`);
+  if (el('total-reservas')) el('total-reservas').textContent = `${total} reservas`;
   const tbody = el('tabla-reservas');
   tbody.innerHTML = lista
     .map(
@@ -425,8 +438,12 @@ async function cargarReservas() {
         <td>${r.id}</td><td>${r.codigo}</td><td>${esc(r.nombreCliente)}<br><small>${esc(r.email)}</small>${r.identificacion ? `<br><small>C.I. ${esc(r.identificacion)}</small>` : ''}</td>
         <td>${r.vehiculo?.marca ?? ''} ${r.vehiculo?.modelo ?? ''}</td>
         <td>${r.fechaRecogida} → ${r.fechaDevolucion}</td>
-        <td>${esc(r.estado_mostrador)}${r.origen === 'BOOKING' ? ' <small>(Booking)</small>' : ''}</td>
+        <td>${esc(r.estado_mostrador === 'CONFIRMADO_ASISTIDO' ? 'ENTREGADO' : r.estado_mostrador)}${r.origen === 'BOOKING' ? ' <small>(Booking)</small>' : ''}</td>
         <td>${
+          r.estado_mostrador === 'RESERVADO'
+            ? `<button data-cancelar="${r.id}" data-codigo="${esc(r.codigo)}" class="secundario">Cancelar</button> `
+            : ''
+        }${
           r.estado_mostrador === 'RESERVADO'
             ? `<button data-entregar="${r.id}" data-licencia="${esc(r.conductor?.license_number ?? '')}" data-km="${r.vehiculo?.kilometrajeActual ?? 0}">Confirmar Entrega de Llaves / Check-in</button> `
             : ''
@@ -452,7 +469,7 @@ async function cargarReservas() {
           body: JSON.stringify({ licencia_conducir: licencia.trim(), km_salida: Number(km) }),
         });
         const n = res.notificacion_booking;
-        alert(`Entrega registrada. ${n?.enviada ? 'Booking fue notificado (CONFIRMADO_ASISTIDO).' : `Booking NO fue notificado: ${n?.detalle ?? 'sin detalle'}`}`);
+        alert(`Entrega confirmada. ${n?.enviada ? `Booking Central respondió acknowledged=${n.respuesta?.acknowledged ?? true}.` : `Booking NO fue notificado: ${n?.detalle ?? 'sin detalle'}`}`);
       } catch (e) {
         alert(e.message);
       }

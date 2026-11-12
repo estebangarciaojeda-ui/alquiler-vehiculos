@@ -29,13 +29,21 @@ export class AdminDataController {
   ) {}
 
   /**
-   * Buscador del mostrador: por código de reserva, identificación/cédula, correo o nombre (sin `q` lista las más recientes).
+   * Buscador del mostrador: por código de reserva, identificación/cédula, correo o nombre (sin `q` lista las más recientes), paginado con `page` y `limit`.
    * Cada fila trae `estado_mostrador`: RESERVADO (pendiente de entrega), CONFIRMADO_ASISTIDO (llaves entregadas), COMPLETADA o CANCELADA.
    */
   @Get('reservas/buscar')
-  async buscarReservas(@Query('q') q?: string) {
+  async buscarReservas(@Query('q') q?: string, @Query('page') page?: string, @Query('limit') limit?: string) {
     const termino = (q ?? '').trim();
-    const qb = this.reservas.createQueryBuilder('r').leftJoinAndSelect('r.vehiculo', 'v').orderBy('r.id', 'DESC').take(100);
+    const tam = Math.min(Math.max(parseInt(limit ?? '10', 10) || 10, 1), 100);
+    const pagina = Math.max(parseInt(page ?? '1', 10) || 1, 1);
+    const qb = this.reservas
+      .createQueryBuilder('r')
+      .leftJoinAndSelect('r.vehiculo', 'v')
+      .leftJoinAndSelect('r.sucursalRecogida', 'sr')
+      .orderBy('r.id', 'DESC')
+      .skip((pagina - 1) * tam)
+      .take(tam);
     if (termino) {
       const patron = `%${termino.toLowerCase()}%`;
       const porCedula = await this.cuentas
@@ -54,11 +62,11 @@ export class AdminDataController {
         }),
       );
     }
-    const filas = await qb.getMany();
+    const [filas, total] = await qb.getManyAndCount();
     const emails = [...new Set(filas.map((r) => r.email.toLowerCase()))];
     const cuentas = emails.length > 0 ? await this.cuentas.createQueryBuilder('c').where('LOWER(c.email) IN (:...emails)', { emails }).getMany() : [];
     const porCorreo = new Map(cuentas.map((c) => [c.email.toLowerCase(), c]));
-    return filas.map((r) => {
+    const items = filas.map((r) => {
       const cuenta = porCorreo.get(r.email.toLowerCase());
       let estadoMostrador = 'RESERVADO';
       if (r.estado === 'CANCELADA') estadoMostrador = 'CANCELADA';
@@ -71,6 +79,22 @@ export class AdminDataController {
         client_id: cuenta ? `CLI-${String(cuenta.id).padStart(5, '0')}` : null,
       };
     });
+    return { items, total, page: pagina, limit: tam, paginas: Math.max(Math.ceil(total / tam), 1) };
+  }
+
+  /** El administrador cancela una reserva aún no entregada: se libera el auto y se repone el stock en Booking. */
+  @Post('reservas/:id/cancelar')
+  async cancelarReserva(@Param('id', ParseIntPipe) id: number, @Body() cuerpo: Record<string, unknown>) {
+    try {
+      const motivo = typeof cuerpo?.motivo === 'string' ? cuerpo.motivo.trim() : undefined;
+      return (await this.ordenesB2b.cancelarEnMostrador(String(id), motivo)).body;
+    } catch (error) {
+      if (error instanceof ProblemaV3Exception) {
+        const p = error.getResponse() as { detail?: string; title?: string };
+        throw new HttpException(p.detail ?? p.title ?? 'No se pudo cancelar la reserva', error.getStatus());
+      }
+      throw error;
+    }
   }
 
   /** El administrador registra en el mostrador la devolución del auto (km de retorno y combustible). */

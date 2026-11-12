@@ -438,6 +438,11 @@ export class OrdenesB2bService {
     return { ...salida, body: { ...dic(salida.body), notificacion_booking: notificacion } };
   }
 
+  /** Cancelación hecha por el administrador desde el panel (solo antes de entregar las llaves): libera el auto y repone el stock. */
+  async cancelarEnMostrador(idOPnr: string, motivo?: string): Promise<Salida> {
+    return this.cancelar(idOPnr, { reason: motivo || 'Cancelada por el administrador', solicitante: 'ADMIN' }, { correlationId: generarCorrelationId() });
+  }
+
   /** Devolución registrada por el administrador en el mostrador: cierra la orden e inicia la limpieza de 2 h. */
   async devolverEnMostrador(idOPnr: string, cuerpo: unknown): Promise<Salida> {
     return this.devolver(idOPnr, cuerpo, { correlationId: generarCorrelationId() });

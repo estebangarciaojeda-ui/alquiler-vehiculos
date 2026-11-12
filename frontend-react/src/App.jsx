@@ -3,6 +3,7 @@ import RutaProtegida from './components/RutaProtegida.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import Clientes from './pages/Clientes.jsx';
 import Login from './pages/Login.jsx';
+import Mostrador from './pages/Mostrador.jsx';
 import Reservas from './pages/Reservas.jsx';
 import Sucursales from './pages/Sucursales.jsx';
 import Vehiculos from './pages/Vehiculos.jsx';
@@ -33,6 +34,14 @@ export default function App() {
           element={
             <RutaProtegida rolRequerido="admin">
               <Reservas />
+            </RutaProtegida>
+          }
+        />
+        <Route
+          path="/mostrador"
+          element={
+            <RutaProtegida rolRequerido="admin">
+              <Mostrador />
             </RutaProtegida>
           }
         />

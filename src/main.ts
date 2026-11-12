@@ -66,6 +66,11 @@ async function bootstrap() {
     app.use(['/swagger', '/swagger-json'], protegerSwagger(swaggerUser, swaggerPassword));
   }
 
+  // Atajos de las pantallas del operador (el panel React vive en /app).
+  app.use(['/admin/mostrador', '/mostrador'], (_req: Request, res: Response) => res.redirect('/app/mostrador'));
+  app.use(['/admin/reservas', '/reservas-admin'], (_req: Request, res: Response) => res.redirect('/app/reservas'));
+  app.use(['/admin/vehiculos', '/admin/vehiculos/nuevo'], (_req: Request, res: Response) => res.redirect('/app/vehiculos'));
+
   app.useStaticAssets(join(process.cwd(), 'public'));
 
   // Frontend React (build de Vite), servido en /app. Fallback a index.html
