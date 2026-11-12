@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { esErrorDeLlaveForanea } from '../common/db-errors.js';
-import { alternativas, disponibleDesde, hayConflicto } from '../integracion-booking/disponibilidad.util.js';
+import { alternativas, disponibleDesde, hayConflicto, ocupaciones } from '../integracion-booking/disponibilidad.util.js';
 import { StockSyncService } from '../integracion-booking/stock-sync.service.js';
 import { Reserva } from '../reservas/reserva.entity.js';
 import { hoyEnEcuador } from '../reservas/reservas.util.js';
@@ -57,10 +57,11 @@ export class VehiculosService {
     const hoy = hoyEnEcuador();
     const evaluados = vehiculos.map((v) => {
       const ocupadas = porVehiculo.get(v.id) ?? [];
-      const bloqueado = v.estadoOperativo === 'EN_MANTENIMIENTO' || (v.estadoOperativo === 'EN_LIMPIEZA' && !!v.disponibleDesde && v.disponibleDesde.getTime() > Date.now());
-      const choca = hayConflicto(ocupadas, pedida);
-      const disponible = !bloqueado && !choca;
-      return { v, disponible, ocupadas, bloqueado };
+      // Mantenimiento bloquea todo; la limpieza en curso solo bloquea recogidas anteriores a su fin.
+      const bloqueado = v.estadoOperativo === 'EN_MANTENIMIENTO';
+      const ocupado = ocupaciones(v, ocupadas);
+      const disponible = !bloqueado && !hayConflicto(ocupado, pedida);
+      return { v, disponible, ocupadas: ocupado, bloqueado };
     });
     if (!filtros.incluirNoDisponibles) return evaluados.filter((e) => e.disponible).map((e) => e.v);
 
@@ -68,7 +69,7 @@ export class VehiculosService {
     return evaluados.map(({ v, disponible, ocupadas, bloqueado }) =>
       Object.assign(v, {
         disponibleEnFechas: disponible,
-        disponibleDesde: disponible ? null : bloqueado ? (v.disponibleDesde?.toISOString() ?? null) : disponibleDesde(ocupadas, pedida),
+        disponibleDesde: disponible || bloqueado ? null : disponibleDesde(ocupadas, pedida),
         alternativas: disponible ? [] : alternativas(ocupadas, pedida, hoy),
       }),
     );

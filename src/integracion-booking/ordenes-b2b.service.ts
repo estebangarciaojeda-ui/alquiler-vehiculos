@@ -30,7 +30,7 @@ import {
 import { ClientesService } from './clientes.service.js';
 import { EventosService } from './eventos.service.js';
 import { FlotaService } from './flota.service.js';
-import { alternativas, disponibleDesde, hayConflicto } from './disponibilidad.util.js';
+import { alternativas, disponibleDesde, hayConflicto, ocupaciones, ventanaLimpieza } from './disponibilidad.util.js';
 import { ProblemaV3Exception } from './problema-v3.js';
 import { RegistroService } from './registro.service.js';
 import { StockSyncService } from './stock-sync.service.js';
@@ -245,32 +245,36 @@ export class OrdenesB2bService {
       const v = await m.findOne(Vehiculo, { where: { id: sol.vehiculoId }, lock: { mode: 'pessimistic_write' }, loadEagerRelations: false });
       if (!v) throw new ProblemaV3Exception(404, 'NOT_FOUND', 'Vehículo no encontrado', `El vehículo ${idPublico(sol.vehiculoId)} no existe.`);
 
-      if (enLimpiezaActiva(v)) {
-        throw new ProblemaV3Exception(
-          409,
-          'VEHICLE_IN_CLEANING_COOLDOWN',
-          'Vehículo en Cooldown de Limpieza Obligatorio (2 Horas)',
-          `El vehículo ${idPublico(v.id)} se encuentra en ciclo de limpieza e higienización obligatoria (${COOLDOWN_MINUTOS} minutos). Estará disponible nuevamente a las ${v.disponibleDesde?.toISOString()}.`,
-          undefined,
-          { disponible_desde: v.disponibleDesde?.toISOString() ?? null },
-        );
-      }
-      if (bloqueadoOperativamente(v)) {
+      // Mantenimiento no tiene fecha de fin: bloquea todo. La limpieza (2 h tras una devolución) solo bloquea recogidas anteriores a su fin.
+      if (v.estadoOperativo === 'EN_MANTENIMIENTO') {
         throw new ProblemaV3Exception(409, 'VEHICLE_UNAVAILABLE', 'Vehículo No Disponible', `El vehículo ${idPublico(v.id)} se encuentra en mantenimiento.`);
       }
 
-      // Disponibilidad por intervalos con el ciclo de limpieza de 2 h entre alquileres; si choca, se ofrecen otras fechas.
+      // Disponibilidad por intervalos: alquileres confirmados + limpieza en curso, con 2 h de limpieza entre alquileres.
       const activas = await m.find(Reserva, { where: { vehiculoId: v.id, estado: 'CONFIRMADA' }, loadEagerRelations: false });
       const pedida = { fechaRecogida: sol.recogida, horaRecogida: sol.horaRecogida, fechaDevolucion: sol.devolucion, horaDevolucion: sol.horaDevolucion };
-      if (hayConflicto(activas, pedida)) {
-        const libreDesde = disponibleDesde(activas, pedida);
+      const limpieza = ventanaLimpieza(v);
+      const ocupado = ocupaciones(v, activas);
+      if (hayConflicto(ocupado, pedida)) {
+        const libreDesde = disponibleDesde(ocupado, pedida);
+        const porLimpieza = !!limpieza && hayConflicto([limpieza], pedida) && !hayConflicto(activas, pedida);
+        if (porLimpieza) {
+          throw new ProblemaV3Exception(
+            409,
+            'VEHICLE_IN_CLEANING_COOLDOWN',
+            'Vehículo en Cooldown de Limpieza Obligatorio (2 Horas)',
+            `El vehículo ${idPublico(v.id)} se encuentra en ciclo de limpieza e higienización obligatoria (${COOLDOWN_MINUTOS} minutos). Estará disponible nuevamente a las ${v.disponibleDesde?.toISOString()}.`,
+            undefined,
+            { disponible_desde: v.disponibleDesde?.toISOString() ?? null, alternativas: alternativas(ocupado, pedida, hoyEnEcuador()) },
+          );
+        }
         throw new ProblemaV3Exception(
           409,
           'VEHICLE_UNAVAILABLE',
           'Vehículo No Disponible',
           `El vehículo ${idPublico(v.id)} no está disponible del ${sol.recogida} al ${sol.devolucion} (incluye las 2 horas de limpieza entre alquileres).`,
           undefined,
-          { disponible_desde: libreDesde, alternativas: alternativas(activas, pedida, hoyEnEcuador()) },
+          { disponible_desde: libreDesde, alternativas: alternativas(ocupado, pedida, hoyEnEcuador()) },
         );
       }
 

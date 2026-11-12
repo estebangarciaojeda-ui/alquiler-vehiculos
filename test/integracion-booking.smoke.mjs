@@ -118,12 +118,17 @@ const flota = (await http('GET', '/autos/flota')).json;
 const enFlota = flota?.find((a) => a.id === auto);
 ok('/autos/flota: EN_LIMPIEZA con cronómetro cercano a 7200 s', enFlota?.estado_operativo === 'EN_LIMPIEZA' && enFlota?.cooldown_activo === true && enFlota?.segundos_restantes_cooldown > 7000 && enFlota?.segundos_restantes_cooldown <= 7200, JSON.stringify(enFlota));
 ok('/autos/flota: alerta_mantenimiento true', enFlota?.alerta_mantenimiento === true);
-const lejos = sumarDias(80);
-const rCd = await http('POST', '/reservas', cuerpoReserva(auto, lejos, sumarDias(82)), { 'Idempotency-Key': randomUUID() });
-ok('reservar un auto en limpieza => 409 VEHICLE_IN_CLEANING_COOLDOWN', rCd.status === 409 && rCd.json?.code === 'VEHICLE_IN_CLEANING_COOLDOWN', `status ${rCd.status} ${JSON.stringify(rCd.json)?.slice(0, 160)}`);
+// Ecuador (UTC-5): la limpieza solo bloquea recogidas anteriores a su fin, así que se prueba con una recogida hoy a las 00:00.
+const hoyEcuador = new Date(Date.now() - 5 * 3600_000).toISOString().slice(0, 10);
+const rCd = await http('POST', '/reservas', cuerpoReserva(auto, hoyEcuador, sumarDias(2), { pickup_time: '00:00' }), { 'Idempotency-Key': randomUUID() });
+ok('recoger un auto antes de que termine su limpieza => 409 VEHICLE_IN_CLEANING_COOLDOWN con disponible_desde', rCd.status === 409 && rCd.json?.code === 'VEHICLE_IN_CLEANING_COOLDOWN' && !!rCd.json?.disponible_desde, `status ${rCd.status} ${JSON.stringify(rCd.json)?.slice(0, 160)}`);
+const rLejos = await http('POST', '/reservas', cuerpoReserva(auto, sumarDias(90), sumarDias(92)), { 'Idempotency-Key': randomUUID() });
+ok('el mismo auto en limpieza SÍ se puede reservar para un día posterior => 201', rLejos.status === 201, `status ${rLejos.status} ${JSON.stringify(rLejos.json)?.slice(0, 160)}`);
+const busqLejos = await http('POST', '/autos/search', { pickup_location: 'Quito', pickup_date: sumarDias(80), dropoff_date: sumarDias(82), pickup_time: '10:00', dropoff_time: '10:00', driver_age: 30 });
+ok('y aparece en la búsqueda de Booking para fechas posteriores a la limpieza', (busqLejos.json?.data ?? []).some((x) => x.vehicle_id === auto), `total ${busqLejos.json?.data?.length}`);
 ok('el auto en limpieza no aparece en /autos', !(await http('GET', '/autos?limit=200')).json?.data?.some((a) => a.vehicle_id === auto));
-const busqCd = await http('POST', '/autos/search', { pickup_location: 'UIO', pickup_date: lejos, pickup_time: '10:00', dropoff_date: sumarDias(82), dropoff_time: '10:00' });
-ok('ni en la búsqueda pública', !busqCd.json?.data?.some((a) => a.vehicle_id === auto));
+const busqCd = await http('POST', '/autos/search', { pickup_location: 'UIO', pickup_date: hoyEcuador, pickup_time: '00:00', dropoff_date: sumarDias(2), dropoff_time: '10:00' });
+ok('la búsqueda con recogida dentro de la limpieza no lo ofrece', busqCd.status === 200 && !busqCd.json?.data?.some((a) => a.vehicle_id === auto), `status ${busqCd.status}`);
 
 console.log('7. Cancelación / compensación Saga');
 const autoC = busq.json.data[1].vehicle_id;
@@ -231,7 +236,8 @@ for (const p of pnrs10c) if (p) await http('POST', `/autos/orders/${p}/cancel`, 
 console.log('11. Regresión del marketplace existente');
 ok('GET /api/v1/vehiculos sigue funcionando', (await http('GET', '/api/v1/vehiculos')).status === 200);
 const mk = await http('GET', `/api/v1/vehiculos?desde=${sumarDias(81)}&hasta=${sumarDias(83)}`);
-ok('la búsqueda del marketplace excluye autos en limpieza', mk.status === 200 && !mk.json?.some((v) => `auto-${String(v.id).padStart(3, '0')}` === auto));
+if (rLejos.json?.pnr) await http('POST', `/autos/orders/${rLejos.json.pnr}/cancel`, {});
+ok('la búsqueda del marketplace incluye un auto en limpieza para fechas posteriores a su fin', mk.status === 200 && mk.json?.some((v) => `auto-${String(v.id).padStart(3, '0')}` === auto));
 
 console.log('12. Limpieza de los datos de prueba');
 const cabAdmin = { 'X-Role': 'ADMIN', ...(API_KEY ? { 'X-API-Key': API_KEY } : {}) };

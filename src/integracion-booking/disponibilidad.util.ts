@@ -12,6 +12,26 @@ export interface Ventana {
   horaDevolucion?: string | null;
 }
 
+/** Ecuador (America/Guayaquil) está en UTC-5 todo el año (sin horario de verano). */
+const OFFSET_ECUADOR_MIN = 300;
+
+/**
+ * El ciclo de limpieza de 2 h tras una devolución (contrato v3: estado EN_LIMPIEZA) no bloquea el auto entero: solo impide
+ * recogerlo ANTES de `disponibleDesde`. Se modela como un alquiler que termina en la devolución real (disponibleDesde - 2 h),
+ * al que `hayConflicto` suma los 120 min de limpieza. Una recogida posterior a `disponibleDesde` queda libre.
+ */
+export function ventanaLimpieza(v: { estadoOperativo: string; disponibleDesde: Date | null }, ahora: Date = new Date(), margen: number = COOLDOWN_MINUTOS): Ventana | null {
+  if (v.estadoOperativo !== 'EN_LIMPIEZA' || !v.disponibleDesde || v.disponibleDesde.getTime() <= ahora.getTime()) return null;
+  const devolucionLocal = new Date(v.disponibleDesde.getTime() - (margen + OFFSET_ECUADOR_MIN) * 60_000).toISOString();
+  return { fechaRecogida: '1970-01-01', horaRecogida: '00:00', fechaDevolucion: devolucionLocal.slice(0, 10), horaDevolucion: devolucionLocal.slice(11, 16) };
+}
+
+/** Alquileres confirmados del auto más, si aplica, su limpieza en curso: todo lo que ocupa el auto en el tiempo. */
+export function ocupaciones(v: { estadoOperativo: string; disponibleDesde: Date | null }, reservas: Ventana[], ahora: Date = new Date()): Ventana[] {
+  const limpieza = ventanaLimpieza(v, ahora);
+  return limpieza ? [...reservas, limpieza] : reservas;
+}
+
 export interface Alternativa {
   fecha_recogida: string;
   hora_recogida: string;

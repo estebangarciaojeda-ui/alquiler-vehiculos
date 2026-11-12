@@ -1,8 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { bloqueadoOperativamente, crearReembolso, DETALLE_NO_CANCELABLE, idPublico, MENSAJE_INVENTARIO } from '../integracion-booking/booking.util.js';
-import { alternativas, disponibleDesde, hayConflicto } from '../integracion-booking/disponibilidad.util.js';
+import { crearReembolso, DETALLE_NO_CANCELABLE, idPublico, MENSAJE_INVENTARIO } from '../integracion-booking/booking.util.js';
+import { alternativas, disponibleDesde, hayConflicto, ocupaciones } from '../integracion-booking/disponibilidad.util.js';
 import { StockSyncService } from '../integracion-booking/stock-sync.service.js';
 import { Cuenta } from '../cuentas/cuenta.entity.js';
 import { PagosService } from '../pagos/pagos.service.js';
@@ -58,8 +58,8 @@ export class ReservasService {
         if (!existe) throw new BadRequestException(`La sucursal ${sucursalDevolucionId} no existe`);
       }
 
-      if (bloqueadoOperativamente(vehiculo)) {
-        throw new ConflictException('El vehículo no está disponible: está en limpieza o mantenimiento');
+      if (vehiculo.estadoOperativo === 'EN_MANTENIMIENTO') {
+        throw new ConflictException('El vehículo no está disponible: está en mantenimiento');
       }
 
       // Disponibilidad por intervalos con 2 h de limpieza entre alquileres; si choca, se ofrecen otras fechas.
@@ -70,13 +70,15 @@ export class ReservasService {
         fechaDevolucion: dto.fechaDevolucion,
         horaDevolucion: dto.horaDevolucion ?? '10:00',
       };
-      if (hayConflicto(activas, pedida)) {
+      // La limpieza en curso (2 h tras una devolución) solo bloquea recogidas anteriores a su fin.
+      const ocupado = ocupaciones(vehiculo, activas);
+      if (hayConflicto(ocupado, pedida)) {
         throw new ConflictException({
           statusCode: 409,
           error: 'Conflict',
           message: `El vehículo no está disponible del ${dto.fechaRecogida} al ${dto.fechaDevolucion} (incluye las 2 horas de limpieza entre alquileres). Elige otras fechas.`,
-          disponibleDesde: disponibleDesde(activas, pedida),
-          alternativas: alternativas(activas, pedida, hoyEnEcuador()),
+          disponibleDesde: disponibleDesde(ocupado, pedida),
+          alternativas: alternativas(ocupado, pedida, hoyEnEcuador()),
         });
       }
 

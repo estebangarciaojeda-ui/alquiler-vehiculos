@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alternativas, disponibleDesde, hayConflicto, type Ventana } from './disponibilidad.util.js';
+import { alternativas, disponibleDesde, hayConflicto, ocupaciones, ventanaLimpieza, type Ventana } from './disponibilidad.util.js';
 
 const v = (r: string, d: string, hr = '10:00', hd = '10:00'): Ventana => ({ fechaRecogida: r, horaRecogida: hr, fechaDevolucion: d, horaDevolucion: hd });
 const reservado = [v('2026-12-12', '2026-12-13')];
@@ -48,5 +48,48 @@ describe('disponibilidad con limpieza de 2 h', () => {
     for (const a of alt) {
       expect(hayConflicto(lleno, v(a.fecha_recogida, a.fecha_devolucion, a.hora_recogida, a.hora_devolucion))).toBe(false);
     }
+  });
+});
+
+describe('limpieza de 2 h tras una devolución: solo bloquea antes de su fin', () => {
+  // Devolución a las 10:00 de Ecuador (15:00Z) => EN_LIMPIEZA hasta las 12:00 (17:00Z).
+  const enLimpieza = { estadoOperativo: 'EN_LIMPIEZA', disponibleDesde: new Date('2026-11-12T17:00:00Z') };
+  const ahora = new Date('2026-11-12T15:30:00Z'); // 10:30 hora local
+
+  it('modela la limpieza como una ocupación que termina en la devolución real', () => {
+    expect(ventanaLimpieza(enLimpieza, ahora)).toMatchObject({ fechaDevolucion: '2026-11-12', horaDevolucion: '10:00' });
+  });
+
+  it('sin limpieza activa (otro estado o ya terminó) no ocupa nada', () => {
+    expect(ventanaLimpieza({ estadoOperativo: 'DISPONIBLE', disponibleDesde: null }, ahora)).toBeNull();
+    expect(ventanaLimpieza(enLimpieza, new Date('2026-11-12T17:00:01Z'))).toBeNull();
+    expect(ocupaciones({ estadoOperativo: 'DISPONIBLE', disponibleDesde: null }, [], ahora)).toEqual([]);
+  });
+
+  it('recoger antes del fin de la limpieza choca; a la hora exacta o después no', () => {
+    const ocupado = ocupaciones(enLimpieza, [], ahora);
+    expect(hayConflicto(ocupado, v('2026-11-12', '2026-11-14', '11:00', '10:00'))).toBe(true);
+    expect(hayConflicto(ocupado, v('2026-11-12', '2026-11-14', '11:59', '10:00'))).toBe(true);
+    expect(hayConflicto(ocupado, v('2026-11-12', '2026-11-14', '12:00', '10:00'))).toBe(false);
+  });
+
+  it('una reserva para el día siguiente sí se puede hacer durante la limpieza', () => {
+    const ocupado = ocupaciones(enLimpieza, [], ahora);
+    expect(hayConflicto(ocupado, v('2026-11-13', '2026-11-15', '10:00', '10:00'))).toBe(false);
+    expect(hayConflicto(ocupado, v('2026-12-20', '2026-12-22'))).toBe(false);
+  });
+
+  it('informa cuándo queda libre y propone el día siguiente como alternativa', () => {
+    const ocupado = ocupaciones(enLimpieza, [], ahora);
+    const pedida = v('2026-11-12', '2026-11-14', '11:00', '10:00');
+    expect(disponibleDesde(ocupado, pedida)).toBe('2026-11-12T12:00');
+    const alt = alternativas(ocupado, pedida, '2026-11-12');
+    expect(alt[0].fecha_recogida).toBe('2026-11-13');
+  });
+
+  it('combina limpieza y reservas futuras', () => {
+    const ocupado = ocupaciones(enLimpieza, [v('2026-11-13', '2026-11-14')], ahora);
+    expect(hayConflicto(ocupado, v('2026-11-13', '2026-11-14'))).toBe(true);
+    expect(hayConflicto(ocupado, v('2026-11-15', '2026-11-16'))).toBe(false);
   });
 });
