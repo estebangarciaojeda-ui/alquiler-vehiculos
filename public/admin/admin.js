@@ -300,6 +300,26 @@ async function cargarSucursales() {
       });
     }),
   );
+  // Check-in de devolución: km de retorno y combustible; el auto pasa 2 h a limpieza.
+  tbody.querySelectorAll('[data-devolver]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const km = prompt(`Kilometraje de retorno (salida: ${b.dataset.km}):`, b.dataset.km);
+      if (km === null) return;
+      const combustible = prompt('Nivel de combustible al devolver (0-100):', '100');
+      if (combustible === null) return;
+      try {
+        const res = await api(`${ADMIN_API}/reservas/${b.dataset.devolver}/devolucion`, {
+          method: 'POST',
+          body: JSON.stringify({ km_retorno: Number(km), nivel_combustible: Number(combustible) }),
+        });
+        alert(`Devolución registrada. Recorrió ${res.km_recorridos} km. ${res.cooldown?.mensaje ?? ''}`);
+      } catch (e) {
+        alert(e.message);
+      }
+      cargarReservas();
+    }),
+  );
+
   tbody.querySelectorAll('[data-borrar]').forEach((b) =>
     b.addEventListener('click', async () => {
       if (!confirm('¿Borrar esta sucursal?')) return;
@@ -409,6 +429,10 @@ async function cargarReservas() {
         <td>${
           r.estado_mostrador === 'RESERVADO'
             ? `<button data-entregar="${r.id}" data-licencia="${esc(r.conductor?.license_number ?? '')}" data-km="${r.vehiculo?.kilometrajeActual ?? 0}">Confirmar Entrega de Llaves / Check-in</button> `
+            : ''
+        }${
+          r.estado_mostrador === 'CONFIRMADO_ASISTIDO'
+            ? `<button data-devolver="${r.id}" data-km="${r.kmSalida ?? 0}">Registrar devolución</button> `
             : ''
         }<button data-borrar="${r.id}" class="peligro">Borrar</button></td>
       </tr>`,

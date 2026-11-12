@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 const ETIQUETA_ESTADO = {
   RESERVADO: 'RESERVADO (pendiente de entrega)',
   CONFIRMADO_ASISTIDO: 'CONFIRMADO_ASISTIDO (llaves entregadas)',
-  COMPLETADA: 'Completada',
+  COMPLETADA: 'COMPLETADA (auto devuelto)',
   CANCELADA: 'Cancelada',
 };
 
@@ -57,6 +57,22 @@ export default function Reservas() {
       alert(`Entrega registrada. ${n?.enviada ? 'Booking fue notificado (CONFIRMADO_ASISTIDO).' : `Booking NO fue notificado: ${n?.detalle ?? 'sin detalle'}`}`);
     } catch (e) {
       setError(e.response?.data?.message ?? 'No se pudo registrar la entrega.');
+    }
+    await cargar();
+  }
+
+  // Check-in de devolución: el cliente trae el auto; se registran km de retorno y combustible, y el auto pasa 2 h a limpieza.
+  async function confirmarDevolucion(r) {
+    const km = prompt(`Kilometraje de retorno (salida: ${r.kmSalida ?? 0}):`, r.kmSalida ?? 0);
+    if (km === null) return;
+    const combustible = prompt('Nivel de combustible al devolver (0-100):', '100');
+    if (combustible === null) return;
+    try {
+      const { data } = await adminApi.post(`/reservas/${r.id}/devolucion`, { km_retorno: Number(km), nivel_combustible: Number(combustible) });
+      alert(`Devolución registrada. Recorrió ${data.km_recorridos} km. ${data.cooldown?.mensaje ?? ''}`);
+      setError('');
+    } catch (e) {
+      setError(e.response?.data?.message ?? 'No se pudo registrar la devolución.');
     }
     await cargar();
   }
@@ -148,6 +164,11 @@ export default function Reservas() {
                   {r.estado_mostrador === 'RESERVADO' && (
                     <button className="btn btn-sm btn-primary me-1" onClick={() => confirmarEntrega(r)}>
                       Confirmar Entrega de Llaves / Check-in
+                    </button>
+                  )}
+                  {r.estado_mostrador === 'CONFIRMADO_ASISTIDO' && (
+                    <button className="btn btn-sm btn-success me-1" onClick={() => confirmarDevolucion(r)}>
+                      Registrar devolución
                     </button>
                   )}
                   <button className="btn btn-sm btn-outline-danger" onClick={() => eliminar(r.id)}>

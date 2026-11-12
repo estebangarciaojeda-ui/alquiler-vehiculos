@@ -438,6 +438,11 @@ export class OrdenesB2bService {
     return { ...salida, body: { ...dic(salida.body), notificacion_booking: notificacion } };
   }
 
+  /** Devolución registrada por el administrador en el mostrador: cierra la orden e inicia la limpieza de 2 h. */
+  async devolverEnMostrador(idOPnr: string, cuerpo: unknown): Promise<Salida> {
+    return this.devolver(idOPnr, cuerpo, { correlationId: generarCorrelationId() });
+  }
+
   private async notificarCheckin(r: Reserva, b: Dic, adminId: string, ctx: Ctx): Promise<Dic> {
     const base = (process.env.BOOKING_BASE_URL ?? 'https://booking-core-api.azurewebsites.net/api/v3').replace(/\/+$/, '');
     const url = `${base}/reservas/${encodeURIComponent(r.codigo)}/checkin`;

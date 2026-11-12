@@ -73,6 +73,20 @@ export class AdminDataController {
     });
   }
 
+  /** El administrador registra en el mostrador la devolución del auto (km de retorno y combustible). */
+  @Post('reservas/:id/devolucion')
+  async devolverReserva(@Param('id', ParseIntPipe) id: number, @Body() cuerpo: Record<string, unknown>) {
+    try {
+      return (await this.ordenesB2b.devolverEnMostrador(String(id), cuerpo)).body;
+    } catch (error) {
+      if (error instanceof ProblemaV3Exception) {
+        const p = error.getResponse() as { detail?: string; title?: string };
+        throw new HttpException(p.detail ?? p.title ?? 'No se pudo registrar la devolución', error.getStatus());
+      }
+      throw error;
+    }
+  }
+
   /** El administrador confirma en el mostrador la entrega de llaves; si la reserva vino de Booking, se le notifica. */
   @Post('reservas/:id/entrega')
   async entregarReserva(@Param('id', ParseIntPipe) id: number, @Body() cuerpo: Record<string, unknown>) {
