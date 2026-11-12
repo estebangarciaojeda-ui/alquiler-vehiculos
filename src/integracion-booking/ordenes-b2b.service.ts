@@ -483,6 +483,18 @@ export class OrdenesB2bService {
     return { ...res, mensaje: `Vehículo ${idPublico(v.id)} disponible. Stock repuesto en Booking.` };
   }
 
+  /** Deja un auto DISPONIBLE desde la lista de vehículos (fin anticipado de limpieza o salida de mantenimiento). */
+  async liberarVehiculo(vehiculoId: number) {
+    const v = await this.vehiculos.findOneBy({ id: vehiculoId });
+    if (!v) throw new ProblemaV3Exception(404, 'NOT_FOUND', 'Vehículo no encontrado', `El vehículo ${idPublico(vehiculoId)} no existe.`);
+    if (v.estadoOperativo === 'DISPONIBLE') {
+      throw new ProblemaV3Exception(409, 'ORDER_STATE_CONFLICT', 'El auto ya está disponible', `El vehículo ${idPublico(v.id)} ya está disponible.`);
+    }
+    const res = await this.flota.cambiarEstado(idPublico(v.id), 'DISPONIBLE');
+    this.registro.registrar('info', 'flota.liberado-manual', { auto_id: idPublico(v.id), desde: v.estadoOperativo });
+    return { ...res, mensaje: `Vehículo ${idPublico(v.id)} disponible. Stock repuesto en Booking.` };
+  }
+
   /** Devolución registrada por el administrador en el mostrador: cierra la orden e inicia la limpieza de 2 h. */
   async devolverEnMostrador(idOPnr: string, cuerpo: unknown, adminId = 'operador-mostrador'): Promise<Salida> {
     const ctx: Ctx = { correlationId: generarCorrelationId() };

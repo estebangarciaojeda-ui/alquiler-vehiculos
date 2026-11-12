@@ -111,6 +111,20 @@ export class AdminDataController {
     }
   }
 
+  /** Desde la lista de vehículos: deja el auto DISPONIBLE (termina la limpieza antes de las 2 h o lo saca de mantenimiento). */
+  @Post('vehiculos/:id/disponible')
+  async liberarVehiculo(@Param('id', ParseIntPipe) id: number) {
+    try {
+      return await this.ordenesB2b.liberarVehiculo(id);
+    } catch (error) {
+      if (error instanceof ProblemaV3Exception) {
+        const p = error.getResponse() as { detail?: string; title?: string };
+        throw new HttpException(p.detail ?? p.title ?? 'No se pudo habilitar el auto', error.getStatus());
+      }
+      throw error;
+    }
+  }
+
   /** El administrador marca el auto como DISPONIBLE al terminar de limpiarlo (no espera las 2 h completas). */
   @Post('reservas/:id/disponible')
   async liberarAuto(@Param('id', ParseIntPipe) id: number) {

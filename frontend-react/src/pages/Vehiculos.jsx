@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import api from '../api.js';
+import api, { adminApi } from '../api.js';
 import FotoVehiculo from '../components/FotoVehiculo.jsx';
 import Nav from '../components/Nav.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -23,6 +23,9 @@ const VACIO = {
   precioPorDia: 30,
   sucursalId: 1,
 };
+
+const horaLocal = (iso) => new Date(iso).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
+const enLimpieza = (v) => v.estadoOperativo === 'EN_LIMPIEZA' && !!v.disponibleDesde && new Date(v.disponibleDesde) > new Date();
 
 export default function Vehiculos() {
   const { auth, logout } = useAuth();
@@ -117,6 +120,18 @@ export default function Vehiculos() {
       await cargar();
     } catch {
       setError('No se pudo eliminar (puede tener reservas asociadas).');
+    }
+  }
+
+  // Deja el auto DISPONIBLE: termina la limpieza antes de las 2 h o lo saca de mantenimiento, y repone el stock en Booking.
+  async function habilitar(v) {
+    const motivo = v.estadoOperativo === 'EN_MANTENIMIENTO' ? 'está en mantenimiento' : 'está en limpieza';
+    if (!confirm(`El ${v.marca} ${v.modelo} ${motivo}. ¿Dejarlo DISPONIBLE ahora? Volverá a aparecer en Booking.`)) return;
+    try {
+      await adminApi.post(`/vehiculos/${v.id}/disponible`);
+      await cargar();
+    } catch (e) {
+      setError(e.response?.data?.message ?? 'No se pudo habilitar el auto.');
     }
   }
 
@@ -243,6 +258,7 @@ export default function Vehiculos() {
               <th>Categoría</th>
               <th>Precio/día</th>
               <th>Sucursal</th>
+              <th>Estado</th>
               <th></th>
             </tr>
           </thead>
@@ -260,6 +276,24 @@ export default function Vehiculos() {
                 <td>${v.precioPorDia}</td>
                 <td>{v.sucursal?.nombre}</td>
                 <td>
+                  {v.estadoOperativo === 'EN_MANTENIMIENTO' ? (
+                    <strong className="text-warning">EN MANTENIMIENTO</strong>
+                  ) : enLimpieza(v) ? (
+                    <>
+                      <strong className="text-info">EN LIMPIEZA</strong>
+                      <br />
+                      <small className="text-muted">hasta las {horaLocal(v.disponibleDesde)}</small>
+                    </>
+                  ) : (
+                    <span className="text-success">DISPONIBLE</span>
+                  )}
+                </td>
+                <td className="text-nowrap">
+                  {(v.estadoOperativo === 'EN_MANTENIMIENTO' || enLimpieza(v)) && (
+                    <button className="btn btn-sm btn-warning me-2" onClick={() => habilitar(v)}>
+                      Disponible
+                    </button>
+                  )}
                   <button className="btn btn-sm btn-outline-primary me-2" onClick={() => abrirEditar(v)}>
                     Editar
                   </button>

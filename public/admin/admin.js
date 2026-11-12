@@ -385,10 +385,35 @@ async function cargarVehiculos() {
         <td>${fotoVehiculo(v)}</td>
         <td>${v.id}</td><td>${v.marca}</td><td>${v.modelo}</td><td>${v.anio}</td><td>${v.categoria}</td>
         <td>$${v.precioPorDia}</td><td>${v.sucursal?.nombre ?? v.sucursalId}</td>
-        <td><button data-editar="${v.id}">Editar</button><button data-borrar="${v.id}" class="peligro">Borrar</button></td>
+        <td>${
+          v.estadoOperativo === 'EN_MANTENIMIENTO'
+            ? 'EN MANTENIMIENTO'
+            : v.estadoOperativo === 'EN_LIMPIEZA' && v.disponibleDesde && new Date(v.disponibleDesde) > new Date()
+              ? `EN LIMPIEZA<br><small>hasta las ${new Date(v.disponibleDesde).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}</small>`
+              : 'DISPONIBLE'
+        }</td>
+        <td>${
+          v.estadoOperativo === 'EN_MANTENIMIENTO' || (v.estadoOperativo === 'EN_LIMPIEZA' && v.disponibleDesde && new Date(v.disponibleDesde) > new Date())
+            ? `<button data-habilitar="${v.id}" data-auto="${esc(v.marca + ' ' + v.modelo)}">Disponible</button>`
+            : ''
+        }<button data-editar="${v.id}">Editar</button><button data-borrar="${v.id}" class="peligro">Borrar</button></td>
       </tr>`,
     )
     .join('');
+
+  // Deja el auto DISPONIBLE: termina la limpieza antes de las 2 h o lo saca de mantenimiento.
+  tbody.querySelectorAll('[data-habilitar]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      if (!confirm(`¿Dejar el ${b.dataset.auto} DISPONIBLE ahora? Volverá a aparecer en Booking.`)) return;
+      try {
+        const res = await api(`${ADMIN_API}/vehiculos/${b.dataset.habilitar}/disponible`, { method: 'POST', body: '{}' });
+        alert(res.mensaje);
+      } catch (e) {
+        alert(e.message);
+      }
+      cargarVehiculos();
+    }),
+  );
 
   tbody.querySelectorAll('[data-editar]').forEach((b) =>
     b.addEventListener('click', () => {
