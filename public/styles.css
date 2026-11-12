@@ -349,3 +349,11 @@ dialog::backdrop { background: rgba(11, 31, 58, 0.6); }
 .alternativas { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; margin-top: 4px; }
 .alternativas .btn-alt { padding: 6px 10px; font-size: 13px; }
 #error-reserva .alternativas { justify-content: flex-start; margin-top: 8px; }
+
+/* Reservas: estados nuevos y comprobante de cancelación */
+.estado-ENTREGADA { background: #fff4d6; color: #8a5a00; }
+.estado-COMPLETADA { background: #e8eef7; color: #38507a; }
+.estado-ok { background: #dff5e6; color: #14663a; }
+.no-cancelable { color: var(--suave); font-size: 13px; text-align: right; max-width: 220px; }
+.comprobante { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 8px; }
+.comprobante li { background: #f1faf4; border: 1px solid #bfe6cc; border-radius: 8px; padding: 10px 12px; color: #14663a; }

@@ -1,4 +1,4 @@
-import { randomInt } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 
 export const TZ = 'America/Guayaquil';
 export const COOLDOWN_MINUTOS = 120;
@@ -461,3 +461,19 @@ export function normalizarCliente(cuerpo: unknown): Resultado<SolicitudCliente> 
 
 /** Identificador público del cliente: CLI-00007. */
 export const idCliente = (id: number): string => `CLI-${String(id).padStart(5, '0')}`;
+
+export const MENSAJE_REEMBOLSO = 'Reembolso total de renta procesado sin penalización (Saga Pattern).';
+export const MENSAJE_INVENTARIO = 'Vehículo reincorporado a flota disponible para renta.';
+export const DETALLE_NO_CANCELABLE = 'El vehículo ya fue retirado en mostrador o el alquiler ya comenzó; no se puede cancelar.';
+
+/** Reembolso simulado del 100 % (REF-AUTO-XXXX) al cancelar una orden que aún no fue retirada. */
+export function crearReembolso(monto: number) {
+  return {
+    refund_id: `REF-AUTO-${randomBytes(3).toString('hex').toUpperCase()}`,
+    amount: monto,
+    currency: MONEDA,
+    percentage: 100,
+    status: 'PROCESSED',
+    message: MENSAJE_REEMBOLSO,
+  };
+}

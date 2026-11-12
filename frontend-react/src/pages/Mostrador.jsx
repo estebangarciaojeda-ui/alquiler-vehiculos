@@ -110,6 +110,10 @@ export default function Mostrador() {
         Busca la reserva del cliente que llegó al mostrador, verifica su licencia y confirma la entrega. Si la reserva vino de Booking, Booking Central es
         notificado automáticamente. Cuando el cliente trae el auto de vuelta, registra la devolución desde la misma tarjeta.
       </p>
+      <p className="small text-muted">
+        Reglas de mostrador: no hay reembolso por devolución anticipada, y los extras (upgrade, días adicionales, GPS, silla de bebé, conductor adicional) se cobran en un
+        contrato anexo independiente, sin modificar la reserva original ni la orden de Booking.
+      </p>
 
       <form
         className="card card-body mb-3"

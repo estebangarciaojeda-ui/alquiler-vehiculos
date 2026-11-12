@@ -13,7 +13,11 @@ import {
   COOLDOWN_MINUTOS,
   diasEntre,
   enLimpiezaActiva,
+  crearReembolso,
+  DETALLE_NO_CANCELABLE,
   generarCorrelationId,
+  MENSAJE_INVENTARIO,
+  MENSAJE_REEMBOLSO,
   generarPnr,
   hoyEnEcuador,
   idPublico,
@@ -316,17 +320,11 @@ export class OrdenesB2bService {
       const r = await this.buscarOrden(idOPnr);
 
       if (r.estado === 'COMPLETADA' || (r.entregadaEn && !r.devueltaEn)) {
-        throw new ProblemaV3Exception(409, 'CANCELLATION_NOT_ALLOWED', 'Cancelación no permitida', 'La orden ya fue entregada al cliente o completada.');
+        throw new ProblemaV3Exception(409, 'CANCELLATION_NOT_ALLOWED', 'Cancelación No Permitida', DETALLE_NO_CANCELABLE);
       }
 
       if (r.estado !== 'CANCELADA') {
-        const reembolso = {
-          refund_id: `REF-AUTO-${randomBytes(2).toString('hex').toUpperCase()}`,
-          amount: r.total,
-          currency: MONEDA,
-          percentage: 100,
-          status: 'PROCESSED',
-        };
+        const reembolso = crearReembolso(r.total);
         await this.reservas.update(r.id, { estado: 'CANCELADA', reembolso });
         this.sync.empujarEnSegundoPlano(r.vehiculoId, r.fechaRecogida, r.horaRecogida, true, 'orden-cancelada');
         await this.eventos
@@ -354,8 +352,8 @@ export class OrdenesB2bService {
           pnr: actual.codigo,
           status: 'CANCELLED',
           auto_id: idPublico(actual.vehiculoId),
-          refund: reembolso,
-          inventory_restoration: { status: 'RESTORED', vehicle_id: idPublico(actual.vehiculoId), new_state: 'DISPONIBLE' },
+          refund: reembolso ? { ...reembolso, message: reembolso.message ?? MENSAJE_REEMBOLSO } : reembolso,
+          inventory_restoration: { status: 'RESTORED', vehicle_id: idPublico(actual.vehiculoId), new_state: 'DISPONIBLE', message: MENSAJE_INVENTARIO },
           message: 'Orden de renta cancelada exitosamente. Vehículo liberado y reembolso procesado.',
         },
       };

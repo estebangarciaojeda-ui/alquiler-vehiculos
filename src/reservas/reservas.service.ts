@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { bloqueadoOperativamente } from '../integracion-booking/booking.util.js';
+import { bloqueadoOperativamente, crearReembolso, DETALLE_NO_CANCELABLE, idPublico, MENSAJE_INVENTARIO } from '../integracion-booking/booking.util.js';
 import { alternativas, disponibleDesde, hayConflicto } from '../integracion-booking/disponibilidad.util.js';
 import { StockSyncService } from '../integracion-booking/stock-sync.service.js';
 import { Cuenta } from '../cuentas/cuenta.entity.js';
@@ -123,13 +123,29 @@ export class ReservasService {
     return reserva;
   }
 
-  async cancelar(id: number): Promise<Reserva> {
+  /**
+   * Cancela una reserva que aún no fue retirada: el auto vuelve a estar disponible y se simula el reembolso del 100 %.
+   * Si las llaves ya se entregaron (o el alquiler terminó), responde 409. Cancelar dos veces no repite nada.
+   */
+  async cancelar(id: number) {
     const reserva = await this.findOne(id);
+    if (reserva.estado === 'COMPLETADA' || reserva.entregadaEn) {
+      throw new ConflictException({ statusCode: 409, error: 'Conflict', title: 'Cancelación No Permitida', message: DETALLE_NO_CANCELABLE });
+    }
     if (reserva.estado !== 'CANCELADA') {
-      await this.repo.update(id, { estado: 'CANCELADA' });
+      await this.repo.update(id, { estado: 'CANCELADA', reembolso: crearReembolso(reserva.total) });
       this.stock.empujarEnSegundoPlano(reserva.vehiculoId, reserva.fechaRecogida, reserva.horaRecogida, true, 'cancelacion-marketplace');
     }
-    return this.findOne(id);
+    const actual = await this.findOne(id);
+    return {
+      ...actual,
+      inventory_restoration: {
+        status: 'RESTORED',
+        vehicle_id: idPublico(actual.vehiculoId),
+        new_state: 'DISPONIBLE',
+        message: MENSAJE_INVENTARIO,
+      },
+    };
   }
 
   async eliminar(id: number): Promise<void> {

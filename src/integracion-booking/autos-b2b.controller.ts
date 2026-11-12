@@ -197,4 +197,10 @@ export class AutosB2bRaizController {
   async crear(@Req() req: Req, @Res({ passthrough: true }) res: Response, @Body() cuerpo: unknown, @Headers('idempotency-key') clave?: string) {
     return responder(res, await this.ordenes.crear(cuerpo, contexto(req, clave)));
   }
+
+  @Post(['orders/:orderId/cancel', 'api/v3/orders/:orderId/cancel'])
+  @HttpCode(200)
+  async cancelar(@Req() req: Req, @Res({ passthrough: true }) res: Response, @Param('orderId') orderId: string, @Body() cuerpo: unknown, @Headers('idempotency-key') clave?: string) {
+    return responder(res, await this.ordenes.cancelar(orderId, cuerpo, contexto(req, clave)));
+  }
 }

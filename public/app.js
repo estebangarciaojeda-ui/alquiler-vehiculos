@@ -578,16 +578,31 @@ async function consultarReservas(evento) {
   }
 }
 
+/** Estado que ve el cliente: la reserva pasa de Confirmada a En curso (llaves entregadas) y a Finalizada (auto devuelto). */
+function estadoDeReserva(r) {
+  if (r.estado === 'CANCELADA') return { clave: 'CANCELADA', texto: 'Cancelada' };
+  if (r.estado === 'COMPLETADA' || r.devueltaEn) return { clave: 'COMPLETADA', texto: 'Finalizada' };
+  if (r.entregadaEn) return { clave: 'ENTREGADA', texto: 'Alquiler en curso' };
+  return { clave: 'CONFIRMADA', texto: 'Confirmada' };
+}
+
 function pintarReservas(reservas) {
   if (reservas.length === 0) {
     $('#lista-reservas').innerHTML = '<div class="vacio">No encontramos reservas con esos datos.</div>';
     return;
   }
   $('#lista-reservas').innerHTML = reservas
-    .map(
-      (r) => `<article class="reserva">
+    .map((r) => {
+      const est = estadoDeReserva(r);
+      let accion = '';
+      if (est.clave === 'CONFIRMADA') {
+        accion = `<button type="button" class="btn btn-peligro" data-cancelar="${r.id}" data-codigo="${esc(r.codigo)}">Cancelar Renta</button>`;
+      } else if (est.clave === 'ENTREGADA') {
+        accion = '<span class="no-cancelable">Vehículo entregado / Alquiler en curso (No cancelable)</span>';
+      }
+      return `<article class="reserva">
         <div>
-          <p class="codigo">${esc(r.codigo)} <span class="estado estado-${esc(r.estado)}">${r.estado === 'CONFIRMADA' ? 'Confirmada' : 'Cancelada'}</span></p>
+          <p class="codigo">${esc(r.codigo)} <span class="estado estado-${est.clave}">${est.texto}</span></p>
           <h3>${esc(r.vehiculo.marca)} ${esc(r.vehiculo.modelo)}</h3>
           <p>${fechaCorta(r.fechaRecogida)} · ${esc(r.horaRecogida)} → ${fechaCorta(r.fechaDevolucion)} · ${esc(r.horaDevolucion)}</p>
           <p>Recogida: ${esc(r.sucursalRecogida.nombre)}, ${esc(r.sucursalRecogida.ciudad)}<br>Devolución: ${esc(r.sucursalDevolucion.nombre)}, ${esc(r.sucursalDevolucion.ciudad)}</p>
@@ -595,21 +610,55 @@ function pintarReservas(reservas) {
         </div>
         <div class="lado">
           <span class="monto">${dinero.format(r.total)}</span>
-          ${r.estado === 'CONFIRMADA' ? `<button type="button" class="btn btn-peligro" data-cancelar="${r.id}" data-codigo="${esc(r.codigo)}">Cancelar reserva</button>` : ''}
+          ${accion}
         </div>
-      </article>`,
-    )
+      </article>`;
+    })
     .join('');
 }
 
-async function cancelarReserva(id, codigo) {
-  if (!confirm(`¿Cancelar la reserva ${codigo}? Esta acción no se puede deshacer.`)) return;
-  try {
-    await api(`/reservas/${id}/cancelar`, { method: 'PATCH' });
-    await consultarReservas();
-  } catch (error) {
-    mostrarError('#error-consulta', error.message);
-  }
+/** Paso 1: modal de confirmación. */
+function cancelarReserva(id, codigo) {
+  $('#dlg-contenido').innerHTML = `<div class="dlg">
+    <div class="dlg-cab"><h2 id="dlg-titulo">Cancelar la renta ${esc(codigo)}</h2><button type="button" class="cerrar" data-cerrar aria-label="Cerrar">&times;</button></div>
+    <p>Se anulará esta reserva y el vehículo volverá a estar disponible para otros usuarios. Se procesará el reembolso del 100 % de tu renta.</p>
+    <p id="error-cancelar" class="error" role="alert" hidden></p>
+    <div class="acciones">
+      <button type="button" class="btn btn-secundario" data-cerrar>Volver</button>
+      <button type="button" class="btn btn-peligro" id="confirmar-cancelacion">Sí, cancelar renta</button>
+    </div>
+  </div>`;
+  dlg().showModal();
+  $('#confirmar-cancelacion').addEventListener('click', async (e) => {
+    const boton = e.currentTarget;
+    boton.disabled = true;
+    mostrarError('#error-cancelar', '');
+    try {
+      const r = await api(`/reservas/${id}/cancelar`, { method: 'PATCH' });
+      mostrarCancelacionExitosa(r);
+      await consultarReservas();
+      if (estado.busqueda && !$('#resultados').hidden) cargarResultados();
+    } catch (error) {
+      mostrarError('#error-cancelar', error.message);
+      boton.disabled = false;
+    }
+  });
+}
+
+/** Paso 2: comprobante de cancelación y reembolso. */
+function mostrarCancelacionExitosa(r) {
+  const reembolso = r.reembolso ?? {};
+  $('#dlg-contenido').innerHTML = `<div class="dlg">
+    <div class="dlg-cab"><h2 id="dlg-titulo">¡Cancelación y Reembolso Exitosos!</h2><button type="button" class="cerrar" data-cerrar aria-label="Cerrar">&times;</button></div>
+    <p><span class="estado estado-ok">Cancelada</span></p>
+    <ul class="comprobante">
+      <li><strong>Código de Reembolso:</strong> ${esc(reembolso.refund_id ?? '—')}</li>
+      <li><strong>Monto Reembolsado:</strong> ${esc(reembolso.percentage ?? 100)}% (${dinero.format(reembolso.amount ?? r.total)})</li>
+      <li><strong>Inventario:</strong> ✓ Vehículo liberado a ${esc(r.inventory_restoration?.new_state ?? 'DISPONIBLE')}</li>
+    </ul>
+    <div class="acciones"><button type="button" class="btn btn-primario" data-cerrar>Entendido</button></div>
+  </div>`;
+  if (!dlg().open) dlg().showModal();
 }
 
 /* ---------- Marcas (carrusel) ---------- */
