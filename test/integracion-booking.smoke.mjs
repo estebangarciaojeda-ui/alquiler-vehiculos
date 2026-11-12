@@ -196,6 +196,34 @@ if (API_KEY) {
   console.log('  (omitido: defina API_KEY para probar eventos y listado de órdenes)');
 }
 
+console.log('10c. Disponibilidad con limpieza de 2 h y fechas alternativas');
+const base12 = await http('POST', '/autos/orders/create', cuerpoReserva(autoD, sumarDias(150), sumarDias(151)), { 'Idempotency-Key': randomUUID() });
+ok('reserva del día 150 al 151 => 201', base12.status === 201, JSON.stringify(base12.json));
+const pnrs10c = [base12.json?.pnr];
+const intento = async (nombre, a, b, extra, esperado) => {
+  const r = await http('POST', '/autos/orders/create', cuerpoReserva(autoD, a, b, extra), { 'Idempotency-Key': randomUUID() });
+  ok(nombre, r.status === esperado, `status ${r.status} ${JSON.stringify(r.json).slice(0, 160)}`);
+  if (r.status === 201) pnrs10c.push(r.json.pnr);
+  return r;
+};
+await intento('día anterior completo (149->150 devolviendo 08:00) => 201 (2 h de limpieza antes de la recogida)', sumarDias(149), sumarDias(150), { dropoff_time: '08:00' }, 201);
+const choque = await intento('devolver a las 10:00 el día de la recogida => 409 (no alcanza la limpieza)', sumarDias(148), sumarDias(150), {}, 409);
+ok('el 409 trae code VEHICLE_UNAVAILABLE, disponible_desde y 3 fechas alternativas', choque.json?.code === 'VEHICLE_UNAVAILABLE' && !!choque.json?.disponible_desde && choque.json?.alternativas?.length === 3, JSON.stringify(choque.json));
+ok('las alternativas son futuras y de la misma duración', choque.json?.alternativas?.every((a) => a.fecha_recogida >= sumarDias(0) && a.dias === 2));
+await intento('recoger el día de la devolución a las 10:00 => 409 (limpieza hasta las 12:00)', sumarDias(151), sumarDias(152), {}, 409);
+await intento('recoger el día de la devolución a las 12:00 => 201 (ya pasó la limpieza)', sumarDias(151), sumarDias(152), { pickup_time: '12:00' }, 201);
+await intento('fechas que se cruzan => 409', sumarDias(150), sumarDias(152), {}, 409);
+const catD = await http('GET', '/autos?limit=200');
+ok('el auto sigue en el catálogo aunque tenga reservas futuras', catD.json?.data?.some((a) => a.vehicle_id === autoD));
+const web = await http('GET', `/api/v1/vehiculos?desde=${sumarDias(150)}&hasta=${sumarDias(151)}&incluirNoDisponibles=true`);
+const enWeb = Array.isArray(web.json) ? web.json.find((x) => `auto-${String(x.id).padStart(3, '0')}` === autoD) : null;
+ok('la web lo muestra como no disponible con fechas alternativas (no desaparece)', enWeb?.disponibleEnFechas === false && enWeb?.alternativas?.length > 0 && !!enWeb?.disponibleDesde, JSON.stringify(enWeb).slice(0, 200));
+const webSin = await http('GET', `/api/v1/vehiculos?desde=${sumarDias(150)}&hasta=${sumarDias(151)}`);
+ok('sin la opción, la API de marketplace sigue excluyendo los ocupados', Array.isArray(webSin.json) && !webSin.json.some((x) => `auto-${String(x.id).padStart(3, '0')}` === autoD));
+const busqD = await http('POST', '/autos/search', { pickup_location: 'Quito', pickup_date: sumarDias(150), dropoff_date: sumarDias(151), pickup_time: '10:00', dropoff_time: '10:00', driver_age: 30 });
+ok('POST /autos/search (contrato) excluye el auto ocupado', !(busqD.json?.data ?? []).some((a) => a.vehicle_id === autoD));
+for (const p of pnrs10c) if (p) await http('POST', `/autos/orders/${p}/cancel`, {});
+
 console.log('11. Regresión del marketplace existente');
 ok('GET /api/v1/vehiculos sigue funcionando', (await http('GET', '/api/v1/vehiculos')).status === 200);
 const mk = await http('GET', `/api/v1/vehiculos?desde=${sumarDias(81)}&hasta=${sumarDias(83)}`);

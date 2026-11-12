@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsNumber, IsOptional, IsString, Matches, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Matches, Min } from 'class-validator';
 import { CATEGORIAS, ORDENES, TRANSMISIONES } from '../../common/constants.js';
 
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
@@ -56,6 +56,15 @@ export class BuscarVehiculosDto {
   @IsOptional()
   @Matches(FECHA, { message: 'hasta debe tener formato AAAA-MM-DD' })
   hasta?: string;
+
+  @ApiPropertyOptional({
+    description: 'Con true, los autos ocupados en esas fechas NO desaparecen: vienen con disponibleEnFechas=false, disponibleDesde y fechas alternativas.',
+    example: true,
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  incluirNoDisponibles?: boolean;
 
   @ApiPropertyOptional({ enum: ORDENES, default: 'precio_asc' })
   @IsOptional()

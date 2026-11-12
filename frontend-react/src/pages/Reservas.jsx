@@ -74,12 +74,14 @@ export default function Reservas() {
 
   // Check-in de entrega: registra la entrega y, si la reserva vino de Booking, se lo notifica.
   async function confirmarEntrega(r) {
+    const cedula = prompt(`Confirme la cédula / identificación del cliente (${r.nombreCliente}):`, r.identificacion ?? '');
+    if (!cedula?.trim()) return;
     const licencia = prompt('Número de licencia del conductor:', r.conductor?.license_number ?? '');
     if (!licencia?.trim()) return;
     const km = prompt('Kilometraje de salida:', r.vehiculo?.kilometrajeActual ?? 0);
     if (km === null) return;
     try {
-      const { data } = await adminApi.post(`/reservas/${r.id}/entrega`, { licencia_conducir: licencia.trim(), km_salida: Number(km) });
+      const { data } = await adminApi.post(`/reservas/${r.id}/entrega`, { identificacion: cedula.trim(), licencia_conducir: licencia.trim(), km_salida: Number(km) });
       const n = data.notificacion_booking;
       if (n?.enviada) {
         setAviso({ tipo: 'success', texto: `Entrega confirmada y Booking Central respondió acknowledged=${n.respuesta?.acknowledged ?? true}.` });

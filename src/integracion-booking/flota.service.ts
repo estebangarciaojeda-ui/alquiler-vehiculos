@@ -29,6 +29,7 @@ import {
 import { AutoBitacora, AutoPromoContrato } from './entities.js';
 import { EventosService } from './eventos.service.js';
 import { ProblemaV3Exception } from './problema-v3.js';
+import { hayConflicto } from './disponibilidad.util.js';
 import { RegistroService } from './registro.service.js';
 import { StockSyncService } from './stock-sync.service.js';
 
@@ -186,16 +187,11 @@ export class FlotaService implements OnModuleInit, OnModuleDestroy {
     if (ids) qb.andWhere('v.sucursalId IN (:...ids)', { ids });
     if (sol.categoria !== 'ALL') qb.andWhere('v.categoria IN (:...cats)', { cats: categoriasInternas(sol.categoria) });
     if (sol.transmision !== 'ALL') qb.andWhere('v.transmision = :t', { t: sol.transmision });
-    qb.andWhere(
-      `NOT EXISTS (
-        SELECT 1 FROM reservas r
-        WHERE r."vehiculoId" = v.id AND r.estado = 'CONFIRMADA'
-          AND r."fechaRecogida" < :hasta AND r."fechaDevolucion" > :desde
-      )`,
-      { desde: sol.recogida, hasta: sol.devolucion },
-    );
-
-    const candidatos = (await qb.getMany()).filter((v) => v.estadoOperativo !== 'EN_MANTENIMIENTO' && !enLimpiezaActiva(v));
+    // Disponibilidad por intervalos con 2 h de limpieza entre alquileres (mismo criterio que al crear la orden).
+    const pedida = { fechaRecogida: sol.recogida, horaRecogida: sol.horaRecogida, fechaDevolucion: sol.devolucion, horaDevolucion: sol.horaDevolucion };
+    const operativos = (await qb.getMany()).filter((v) => v.estadoOperativo !== 'EN_MANTENIMIENTO' && !enLimpiezaActiva(v));
+    const ocupacion = await this.reservasVivasPorVehiculo(operativos.map((v) => v.id));
+    const candidatos = operativos.filter((v) => !hayConflicto(ocupacion.get(v.id) ?? [], pedida));
     const dias = diasEntre(sol.recogida, sol.devolucion);
     const data = candidatos.map((v) => this.tarjeta(v, 'DISPONIBLE', { base, dias, edad: sol.edad }));
     const recargo = data.length > 0 ? calcularTarifa(candidatos[0].precioPorDia, dias, 'BASICA', sol.edad).surcharge : 0;

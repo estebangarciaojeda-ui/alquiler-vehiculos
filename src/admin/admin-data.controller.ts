@@ -75,7 +75,7 @@ export class AdminDataController {
       return {
         ...r,
         estado_mostrador: estadoMostrador,
-        identificacion: cuenta?.identificacion ?? (r.conductor?.identificacion as string | undefined) ?? null,
+        identificacion: (r.conductor?.identificacion as string | undefined) ?? cuenta?.identificacion ?? null,
         client_id: cuenta ? `CLI-${String(cuenta.id).padStart(5, '0')}` : null,
       };
     });

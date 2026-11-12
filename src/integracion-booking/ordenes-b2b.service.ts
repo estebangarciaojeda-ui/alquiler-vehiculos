@@ -26,6 +26,7 @@ import {
 import { ClientesService } from './clientes.service.js';
 import { EventosService } from './eventos.service.js';
 import { FlotaService } from './flota.service.js';
+import { alternativas, disponibleDesde, hayConflicto } from './disponibilidad.util.js';
 import { ProblemaV3Exception } from './problema-v3.js';
 import { RegistroService } from './registro.service.js';
 import { StockSyncService } from './stock-sync.service.js';
@@ -246,22 +247,27 @@ export class OrdenesB2bService {
           'VEHICLE_IN_CLEANING_COOLDOWN',
           'Vehículo en Cooldown de Limpieza Obligatorio (2 Horas)',
           `El vehículo ${idPublico(v.id)} se encuentra en ciclo de limpieza e higienización obligatoria (${COOLDOWN_MINUTOS} minutos). Estará disponible nuevamente a las ${v.disponibleDesde?.toISOString()}.`,
+          undefined,
+          { disponible_desde: v.disponibleDesde?.toISOString() ?? null },
         );
       }
       if (bloqueadoOperativamente(v)) {
         throw new ProblemaV3Exception(409, 'VEHICLE_UNAVAILABLE', 'Vehículo No Disponible', `El vehículo ${idPublico(v.id)} se encuentra en mantenimiento.`);
       }
 
-      const solapadas = await m
-        .getRepository(Reserva)
-        .createQueryBuilder('r')
-        .where('r.vehiculoId = :vid', { vid: v.id })
-        .andWhere("r.estado = 'CONFIRMADA'")
-        .andWhere('r.fechaRecogida < :hasta', { hasta: sol.devolucion })
-        .andWhere('r.fechaDevolucion > :desde', { desde: sol.recogida })
-        .getCount();
-      if (solapadas > 0) {
-        throw new ProblemaV3Exception(409, 'VEHICLE_UNAVAILABLE', 'Vehículo No Disponible', `El vehículo ${idPublico(v.id)} ya está reservado en esas fechas.`);
+      // Disponibilidad por intervalos con el ciclo de limpieza de 2 h entre alquileres; si choca, se ofrecen otras fechas.
+      const activas = await m.find(Reserva, { where: { vehiculoId: v.id, estado: 'CONFIRMADA' }, loadEagerRelations: false });
+      const pedida = { fechaRecogida: sol.recogida, horaRecogida: sol.horaRecogida, fechaDevolucion: sol.devolucion, horaDevolucion: sol.horaDevolucion };
+      if (hayConflicto(activas, pedida)) {
+        const libreDesde = disponibleDesde(activas, pedida);
+        throw new ProblemaV3Exception(
+          409,
+          'VEHICLE_UNAVAILABLE',
+          'Vehículo No Disponible',
+          `El vehículo ${idPublico(v.id)} no está disponible del ${sol.recogida} al ${sol.devolucion} (incluye las 2 horas de limpieza entre alquileres).`,
+          undefined,
+          { disponible_desde: libreDesde, alternativas: alternativas(activas, pedida, hoyEnEcuador()) },
+        );
       }
 
       const sucursales = await m.find(Sucursal);
@@ -429,7 +435,24 @@ export class OrdenesB2bService {
    */
   async entregarEnMostrador(idOPnr: string, cuerpo: unknown, adminId: string): Promise<Salida> {
     const ctx: Ctx = { correlationId: generarCorrelationId() };
+    // El operador confirma (o completa) la cédula del cliente antes de entregar las llaves.
+    const cedula = typeof dic(cuerpo).identificacion === 'string' ? (dic(cuerpo).identificacion as string).trim() : '';
+    if (cedula && !/^[A-Za-z0-9-]{5,20}$/.test(cedula)) {
+      throw new ProblemaV3Exception(400, 'MALFORMED_REQUEST', 'Cédula inválida', 'La cédula o identificación debe tener de 5 a 20 letras, números o guiones.', [
+        { name: 'identificacion', reason: 'Entre 5 y 20 letras, números o guiones.' },
+      ]);
+    }
     const salida = await this.entregar(idOPnr, cuerpo, ctx);
+    if (cedula) {
+      const previa = await this.buscarOrden(idOPnr);
+      await this.reservas.update(previa.id, {
+        conductor: { ...(previa.conductor ?? { full_name: previa.nombreCliente, email: previa.email, phone: previa.telefono }), identificacion: cedula },
+      });
+      await this.clientes
+        .asegurarCuenta({ nombre: previa.nombreCliente, email: previa.email, identificacion: cedula, telefono: previa.telefono })
+        .catch((e) => this.logger.warn(`No se pudo completar la cédula del cliente: ${(e as Error).message}`));
+      this.registro.registrar('info', 'cliente.cedula-confirmada', { correlation_id: ctx.correlationId, pnr: previa.codigo, admin_id: adminId });
+    }
     const r = await this.buscarOrden(idOPnr);
     const notificacion =
       r.origen === 'BOOKING'

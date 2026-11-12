@@ -52,12 +52,14 @@ export default function Mostrador() {
   const refrescar = () => buscar(consulta);
 
   async function entregar(r) {
+    const cedula = prompt(`Confirme la cédula / identificación del cliente (${r.nombreCliente}):`, r.identificacion ?? '');
+    if (!cedula?.trim()) return;
     const licencia = prompt('Verifique la licencia física del conductor y escriba su número:', r.conductor?.license_number ?? '');
     if (!licencia?.trim()) return;
     const km = prompt('Kilometraje de salida:', r.vehiculo?.kilometrajeActual ?? 0);
     if (km === null) return;
     try {
-      const { data } = await adminApi.post(`/reservas/${r.id}/entrega`, { licencia_conducir: licencia.trim(), km_salida: Number(km) });
+      const { data } = await adminApi.post(`/reservas/${r.id}/entrega`, { identificacion: cedula.trim(), licencia_conducir: licencia.trim(), km_salida: Number(km) });
       const n = data.notificacion_booking;
       if (n?.enviada) setAviso({ tipo: 'success', texto: `Entrega confirmada y Booking Central respondió acknowledged=${n.respuesta?.acknowledged ?? true}.` });
       else if (r.origen === 'BOOKING') setAviso({ tipo: 'warning', texto: `Entrega confirmada, pero Booking NO fue notificado: ${n?.detalle ?? 'sin detalle'}` });
@@ -196,7 +198,7 @@ export default function Mostrador() {
                     </div>
                     <div className="col-6">
                       <div className="text-uppercase text-muted">Cédula / ID</div>
-                      {r.identificacion ?? '—'}
+                      {r.identificacion ?? <span className="text-warning">Sin registrar: se pedirá al entregar</span>}
                     </div>
                     <div className="col-6">
                       <div className="text-uppercase text-muted">Email</div>

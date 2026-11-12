@@ -32,6 +32,7 @@ export class ProblemaV3Exception extends HttpException {
     title: string,
     detail: string,
     invalidParams?: ErrorCampo[],
+    extra?: Record<string, unknown>,
   ) {
     super(
       {
@@ -41,6 +42,7 @@ export class ProblemaV3Exception extends HttpException {
         detail,
         code: codigo,
         ...(invalidParams ? { invalid_params: invalidParams } : {}),
+        ...(extra ?? {}),
       },
       status,
     );

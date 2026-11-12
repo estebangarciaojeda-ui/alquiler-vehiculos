@@ -116,7 +116,9 @@ async function api(ruta, opciones = {}) {
     try { datos = texto ? JSON.parse(texto) : null; } catch { datos = null; }
     if (!res.ok) {
       const mensaje = Array.isArray(datos?.message) ? datos.message.join('. ') : datos?.message;
-      throw new Error(mensaje || `El servidor respondió con un error (${res.status}).`);
+      const falla = new Error(mensaje || `El servidor respondió con un error (${res.status}).`);
+      falla.datos = datos;
+      throw falla;
     }
     return datos;
   } finally {
@@ -240,7 +242,7 @@ async function buscar(evento) {
 async function cargarResultados() {
   const b = estado.busqueda;
   const f = estado.filtros;
-  const consulta = new URLSearchParams({ sucursalId: b.sucursalId, desde: b.recogida, hasta: b.devolucion, orden: f.orden });
+  const consulta = new URLSearchParams({ sucursalId: b.sucursalId, desde: b.recogida, hasta: b.devolucion, orden: f.orden, incluirNoDisponibles: 'true' });
   if (f.marca) consulta.set('marca', f.marca);
   if (f.categoria) consulta.set('categoria', f.categoria);
   if (f.transmision) consulta.set('transmision', f.transmision);
@@ -261,22 +263,51 @@ async function cargarResultados() {
   }
 }
 
+/* ---------- Auto ocupado: nunca desaparece, se ofrecen otras fechas ---------- */
+
+const fechaHoraCorta = (iso) => (iso ? `${fechaCorta(iso.slice(0, 10))} ${iso.slice(11, 16)}` : '');
+
+function botonesAlternativas(alternativas) {
+  return (alternativas ?? [])
+    .map((a) => `<button type="button" class="btn btn-secundario btn-alt" data-otras-fechas data-rec="${esc(a.fecha_recogida)}" data-dev="${esc(a.fecha_devolucion)}">${fechaCorta(a.fecha_recogida)} → ${fechaCorta(a.fecha_devolucion)}</button>`)
+    .join('');
+}
+
+function bloqueNoDisponible(v) {
+  const alt = botonesAlternativas(v.alternativas);
+  return `<p class="no-disp"><strong>No disponible para esas fechas</strong>${v.disponibleDesde ? `<br><small>Vuelve a estar libre el ${esc(fechaHoraCorta(v.disponibleDesde))} (incluye la limpieza)</small>` : ''}</p>
+    ${alt ? `<p class="detalle">Elige otras fechas:</p><div class="alternativas">${alt}</div>` : ''}`;
+}
+
+/** Cambia las fechas de la búsqueda a una alternativa sugerida y vuelve a buscar. */
+function usarOtrasFechas(recogida, devolucion) {
+  $('#fecha-recogida').value = recogida;
+  $('#fecha-devolucion').min = sumarDias(recogida, 1);
+  $('#fecha-devolucion').value = devolucion;
+  if (dlg().open) dlg().close();
+  buscar();
+}
+
 function pintarResultados() {
   const b = estado.busqueda;
   const sucursal = estado.sucursales.find((s) => s.id === b.sucursalId);
-  const n = estado.vehiculos.length;
+  const n = estado.vehiculos.filter((v) => v.disponibleEnFechas !== false).length;
+  const ocupados = estado.vehiculos.length - n;
   $('#res-titulo').textContent = n === 1 ? '1 vehículo disponible' : `${n} vehículos disponibles`;
-  $('#res-sub').textContent = `${sucursal ? `${sucursal.nombre}, ${sucursal.ciudad} · ` : ''}${fechaCorta(b.recogida)} → ${fechaCorta(b.devolucion)} (${b.dias} ${b.dias === 1 ? 'día' : 'días'})`;
+  $('#res-sub').textContent = `${sucursal ? `${sucursal.nombre}, ${sucursal.ciudad} · ` : ''}${fechaCorta(b.recogida)} → ${fechaCorta(b.devolucion)} (${b.dias} ${b.dias === 1 ? 'día' : 'días'})${ocupados ? ` · ${ocupados} no ${ocupados === 1 ? 'está disponible' : 'están disponibles'} en esas fechas` : ''}`;
 
-  if (n === 0) {
+  if (estado.vehiculos.length === 0) {
     $('#lista').innerHTML = '<div class="vacio"><strong>No encontramos vehículos con esos filtros.</strong><br>Prueba con otras fechas, otra sucursal o quita algunos filtros.</div>';
     return;
   }
 
-  $('#lista').innerHTML = estado.vehiculos
+  // Los disponibles primero; los ocupados en esas fechas siguen visibles después.
+  const ordenados = [...estado.vehiculos].sort((a, b) => Number(b.disponibleEnFechas !== false) - Number(a.disponibleEnFechas !== false));
+  $('#lista').innerHTML = ordenados
     .map((v) => {
       const total = v.precioPorDia * b.dias;
-      return `<article class="auto">
+      const libre = v.disponibleEnFechas !== false;
+      return `<article class="auto${libre ? '' : ' auto--ocupado'}">
         <div class="auto-media${estado.creditos[claveModelo(v)] ? ' auto-media--foto' : ''}">${estado.creditos[claveModelo(v)] ? fotoAuto(v) : dibujarAuto(v)}<span class="chip">${esc(ETIQUETAS.categoria[v.categoria] ?? v.categoria)}</span></div>
         <div class="auto-info">
           <h3>${esc(v.marca)} ${esc(v.modelo)} <small>o similar · ${v.anio}</small></h3>
@@ -294,7 +325,7 @@ function pintarResultados() {
         <div class="auto-precio">
           <p class="total">${dinero.format(total)}</p>
           <p class="detalle">${b.dias} ${b.dias === 1 ? 'día' : 'días'} · ${dinero.format(v.precioPorDia)} por día</p>
-          <button type="button" class="btn btn-primario" data-reservar="${v.id}">Reservar</button>
+          ${libre ? `<button type="button" class="btn btn-primario" data-reservar="${v.id}">Reservar</button>` : bloqueNoDisponible(v)}
         </div>
       </article>`;
     })
@@ -423,6 +454,7 @@ function abrirReserva(id) {
     <form id="form-reserva" class="form-reserva">
       <label class="campo"><span>Nombre completo</span><input type="text" name="nombre" required maxlength="120" autocomplete="name" value="${esc(cliente.nombre)}"></label>
       <label class="campo"><span>Correo electrónico</span><input type="email" name="email" required readonly value="${esc(cliente.email)}"></label>
+      <label class="campo"><span>Cédula / identificación</span><input type="text" name="identificacion" required pattern="[A-Za-z0-9\-]{5,20}" maxlength="20" autocomplete="off" inputmode="text" placeholder="1712345678" value="${esc(leer('ar-identificacion'))}"><small class="nota-pago">La confirmaremos al retirar el auto en el mostrador, junto con tu licencia.</small></label>
       <label class="campo"><span>Teléfono</span><input type="tel" name="telefono" required pattern="[0-9+\\-\\s\\(\\)]{7,20}" autocomplete="tel" value="${esc(leer('ar-telefono'))}"></label>
       <fieldset class="bloque-pago">
         <legend>Pago (simulado)</legend>
@@ -475,6 +507,7 @@ async function enviarReserva(evento, vehiculo) {
     nombreCliente: String(datos.get('nombre')).trim(),
     email: String(datos.get('email')).trim(),
     telefono: String(datos.get('telefono')).trim(),
+    identificacion: String(datos.get('identificacion')).trim(),
     pago: {
       numero: String(datos.get('tarjeta')).trim(),
       vencimiento: String(datos.get('vencimiento')).trim(),
@@ -490,10 +523,15 @@ async function enviarReserva(evento, vehiculo) {
     guardar('ar-nombre', cuerpo.nombreCliente);
     guardar('ar-email', cuerpo.email);
     guardar('ar-telefono', cuerpo.telefono);
+    guardar('ar-identificacion', cuerpo.identificacion);
     mostrarConfirmacion(reserva);
     cargarResultados();
   } catch (error) {
     mostrarError('#error-reserva', error.message);
+    const alt = botonesAlternativas(error.datos?.alternativas);
+    if (alt) {
+      $('#error-reserva').insertAdjacentHTML('beforeend', `<span class="alternativas-msg"><br>Puedes elegir otras fechas para este auto:</span><span class="alternativas">${alt}</span>`);
+    }
     boton.disabled = false;
     if (/no está disponible/i.test(error.message)) cargarResultados();
   }
@@ -694,6 +732,7 @@ function enlazarEventos() {
     const objetivo = e.target.closest('button');
     if (!objetivo) return;
     if (objetivo.dataset.marca) elegirMarca(objetivo.dataset.marca);
+    else if ('otrasFechas' in objetivo.dataset) usarOtrasFechas(objetivo.dataset.rec, objetivo.dataset.dev);
     else if (objetivo.dataset.reservar) abrirReserva(Number(objetivo.dataset.reservar));
     else if (objetivo.dataset.cancelar) cancelarReserva(Number(objetivo.dataset.cancelar), objetivo.dataset.codigo);
     else if ('abrirLogin' in objetivo.dataset) { dlg().close(); abrirLogin(); }

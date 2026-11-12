@@ -51,6 +51,12 @@ export class CrearReservaDto {
   @Matches(/^[0-9+\-\s()]{7,20}$/, { message: 'telefono no es válido' })
   telefono: string;
 
+  @ApiPropertyOptional({ example: '1712345678', description: 'Cédula o identificación del conductor (se confirma al retirar el auto en el mostrador)' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9-]{5,20}$/, { message: 'identificacion no es válida (5 a 20 letras, números o guiones)' })
+  identificacion?: string;
+
   @ApiProperty({ type: PagoTarjetaDto, description: 'Datos de tarjeta para el pago simulado (no se cobra nada real)' })
   @ValidateNested()
   @Type(() => PagoTarjetaDto)

@@ -445,7 +445,7 @@ async function cargarReservas() {
             : ''
         }${
           r.estado_mostrador === 'RESERVADO'
-            ? `<button data-entregar="${r.id}" data-licencia="${esc(r.conductor?.license_number ?? '')}" data-km="${r.vehiculo?.kilometrajeActual ?? 0}">Confirmar Entrega de Llaves / Check-in</button> `
+            ? `<button data-entregar="${r.id}" data-nombre="${esc(r.nombreCliente)}" data-cedula="${esc(r.identificacion ?? '')}" data-licencia="${esc(r.conductor?.license_number ?? '')}" data-km="${r.vehiculo?.kilometrajeActual ?? 0}">Confirmar Entrega de Llaves / Check-in</button> `
             : ''
         }${
           r.estado_mostrador === 'CONFIRMADO_ASISTIDO'
@@ -459,6 +459,8 @@ async function cargarReservas() {
   // Check-in de entrega en el mostrador: registra la entrega y, si la reserva vino de Booking, se lo notifica.
   tbody.querySelectorAll('[data-entregar]').forEach((b) =>
     b.addEventListener('click', async () => {
+      const cedula = prompt(`Confirme la cédula / identificación del cliente (${b.dataset.nombre}):`, b.dataset.cedula);
+      if (!cedula?.trim()) return;
       const licencia = prompt('Número de licencia del conductor:', b.dataset.licencia);
       if (!licencia?.trim()) return;
       const km = prompt('Kilometraje de salida:', b.dataset.km);
@@ -466,7 +468,7 @@ async function cargarReservas() {
       try {
         const res = await api(`${ADMIN_API}/reservas/${b.dataset.entregar}/entrega`, {
           method: 'POST',
-          body: JSON.stringify({ licencia_conducir: licencia.trim(), km_salida: Number(km) }),
+          body: JSON.stringify({ identificacion: cedula.trim(), licencia_conducir: licencia.trim(), km_salida: Number(km) }),
         });
         const n = res.notificacion_booking;
         alert(`Entrega confirmada. ${n?.enviada ? `Booking Central respondió acknowledged=${n.respuesta?.acknowledged ?? true}.` : `Booking NO fue notificado: ${n?.detalle ?? 'sin detalle'}`}`);

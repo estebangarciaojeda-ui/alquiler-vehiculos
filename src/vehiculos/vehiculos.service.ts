@@ -1,8 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { esErrorDeLlaveForanea } from '../common/db-errors.js';
+import { alternativas, disponibleDesde, hayConflicto } from '../integracion-booking/disponibilidad.util.js';
 import { StockSyncService } from '../integracion-booking/stock-sync.service.js';
+import { Reserva } from '../reservas/reserva.entity.js';
+import { hoyEnEcuador } from '../reservas/reservas.util.js';
 import { Sucursal } from '../sucursales/sucursal.entity.js';
 import { ActualizarPrecioDto } from './dto/actualizar-precio.dto.js';
 import { BuscarVehiculosDto } from './dto/buscar-vehiculos.dto.js';
@@ -16,6 +19,8 @@ export class VehiculosService {
     private readonly repo: Repository<Vehiculo>,
     @InjectRepository(Sucursal)
     private readonly sucursalesRepo: Repository<Sucursal>,
+    @InjectRepository(Reserva)
+    private readonly reservasRepo: Repository<Reserva>,
     private readonly sync: StockSyncService,
   ) {}
 
@@ -38,25 +43,35 @@ export class VehiculosService {
     if (filtros.pasajeros) qb.andWhere('v.pasajeros >= :pasajeros', { pasajeros: filtros.pasajeros });
     if (filtros.precioMax) qb.andWhere('v.precioPorDia <= :precioMax', { precioMax: filtros.precioMax });
 
-    if (desde && hasta) {
-      qb.andWhere(
-        `NOT EXISTS (
-          SELECT 1 FROM reservas r
-          WHERE r."vehiculoId" = v.id
-            AND r.estado = 'CONFIRMADA'
-            AND r."fechaRecogida" < :hasta
-            AND r."fechaDevolucion" > :desde
-        )`,
-        { desde, hasta },
-      );
-      // Autos en limpieza (cooldown de 2 h) o en mantenimiento no se ofrecen al buscar disponibilidad.
-      qb.andWhere(
-        `NOT (v.estadoOperativo = 'EN_MANTENIMIENTO' OR (v.estadoOperativo = 'EN_LIMPIEZA' AND v.disponibleDesde > NOW()))`,
-      );
-    }
-
     qb.orderBy('v.precioPorDia', filtros.orden === 'precio_desc' ? 'DESC' : 'ASC').addOrderBy('v.id', 'ASC');
-    return qb.getMany();
+    const vehiculos = await qb.getMany();
+    if (!desde || !hasta) return vehiculos;
+
+    // Disponibilidad por intervalos con 2 h de limpieza entre alquileres. Autos en mantenimiento o en limpieza activa no se ofrecen.
+    const activas = vehiculos.length
+      ? await this.reservasRepo.find({ where: { vehiculoId: In(vehiculos.map((v) => v.id)), estado: 'CONFIRMADA' }, loadEagerRelations: false })
+      : [];
+    const porVehiculo = new Map<number, Reserva[]>();
+    for (const r of activas) porVehiculo.set(r.vehiculoId, [...(porVehiculo.get(r.vehiculoId) ?? []), r]);
+    const pedida = { fechaRecogida: desde, horaRecogida: '10:00', fechaDevolucion: hasta, horaDevolucion: '10:00' };
+    const hoy = hoyEnEcuador();
+    const evaluados = vehiculos.map((v) => {
+      const ocupadas = porVehiculo.get(v.id) ?? [];
+      const bloqueado = v.estadoOperativo === 'EN_MANTENIMIENTO' || (v.estadoOperativo === 'EN_LIMPIEZA' && !!v.disponibleDesde && v.disponibleDesde.getTime() > Date.now());
+      const choca = hayConflicto(ocupadas, pedida);
+      const disponible = !bloqueado && !choca;
+      return { v, disponible, ocupadas, bloqueado };
+    });
+    if (!filtros.incluirNoDisponibles) return evaluados.filter((e) => e.disponible).map((e) => e.v);
+
+    // Con `incluirNoDisponibles` el auto nunca desaparece: se marca no disponible y se ofrecen otras fechas.
+    return evaluados.map(({ v, disponible, ocupadas, bloqueado }) =>
+      Object.assign(v, {
+        disponibleEnFechas: disponible,
+        disponibleDesde: disponible ? null : bloqueado ? (v.disponibleDesde?.toISOString() ?? null) : disponibleDesde(ocupadas, pedida),
+        alternativas: disponible ? [] : alternativas(ocupadas, pedida, hoy),
+      }),
+    );
   }
 
   async marcas(): Promise<string[]> {

@@ -2,7 +2,9 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { bloqueadoOperativamente } from '../integracion-booking/booking.util.js';
+import { alternativas, disponibleDesde, hayConflicto } from '../integracion-booking/disponibilidad.util.js';
 import { StockSyncService } from '../integracion-booking/stock-sync.service.js';
+import { Cuenta } from '../cuentas/cuenta.entity.js';
 import { PagosService } from '../pagos/pagos.service.js';
 import { Sucursal } from '../sucursales/sucursal.entity.js';
 import { Vehiculo } from '../vehiculos/vehiculo.entity.js';
@@ -60,16 +62,22 @@ export class ReservasService {
         throw new ConflictException('El vehículo no está disponible: está en limpieza o mantenimiento');
       }
 
-      const solapadas = await manager
-        .getRepository(Reserva)
-        .createQueryBuilder('r')
-        .where('r.vehiculoId = :vehiculoId', { vehiculoId: vehiculo.id })
-        .andWhere("r.estado = 'CONFIRMADA'")
-        .andWhere('r.fechaRecogida < :hasta', { hasta: dto.fechaDevolucion })
-        .andWhere('r.fechaDevolucion > :desde', { desde: dto.fechaRecogida })
-        .getCount();
-      if (solapadas > 0) {
-        throw new ConflictException('El vehículo no está disponible en esas fechas');
+      // Disponibilidad por intervalos con 2 h de limpieza entre alquileres; si choca, se ofrecen otras fechas.
+      const activas = await manager.find(Reserva, { where: { vehiculoId: vehiculo.id, estado: 'CONFIRMADA' }, loadEagerRelations: false });
+      const pedida = {
+        fechaRecogida: dto.fechaRecogida,
+        horaRecogida: dto.horaRecogida ?? '10:00',
+        fechaDevolucion: dto.fechaDevolucion,
+        horaDevolucion: dto.horaDevolucion ?? '10:00',
+      };
+      if (hayConflicto(activas, pedida)) {
+        throw new ConflictException({
+          statusCode: 409,
+          error: 'Conflict',
+          message: `El vehículo no está disponible del ${dto.fechaRecogida} al ${dto.fechaDevolucion} (incluye las 2 horas de limpieza entre alquileres). Elige otras fechas.`,
+          disponibleDesde: disponibleDesde(activas, pedida),
+          alternativas: alternativas(activas, pedida, hoyEnEcuador()),
+        });
       }
 
       const total = Math.round(dias * vehiculo.precioPorDia * 100) / 100;
@@ -93,12 +101,24 @@ export class ReservasService {
         cuentaId,
         pagoReferencia: cobro.referencia,
         tarjetaUltimos4: cobro.tarjetaUltimos4,
+        conductor: dto.identificacion
+          ? { full_name: dto.nombreCliente.trim(), email: dto.email.trim().toLowerCase(), phone: dto.telefono.trim(), identificacion: dto.identificacion.trim() }
+          : null,
       });
       const guardada = await manager.save(nueva);
       return guardada.id;
     });
 
     const reserva = await this.findOne(id);
+    // La cédula del cliente queda también en su cuenta (si no tenía una y nadie más la usa) para encontrarlo por cédula.
+    if (dto.identificacion) {
+      const cuentas = this.dataSource.getRepository(Cuenta);
+      const ident = dto.identificacion.trim();
+      const propia = await cuentas.findOneBy({ id: cuentaId });
+      if (propia && !propia.identificacion && !(await cuentas.existsBy({ identificacion: ident }))) {
+        await cuentas.update(cuentaId, { identificacion: ident, telefono: propia.telefono ?? dto.telefono.trim() });
+      }
+    }
     this.stock.empujarEnSegundoPlano(reserva.vehiculoId, reserva.fechaRecogida, reserva.horaRecogida, false, 'reserva-marketplace');
     return reserva;
   }
