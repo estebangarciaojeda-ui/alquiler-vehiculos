@@ -467,7 +467,7 @@ export class OrdenesB2bService {
         estado: 'CONFIRMADO_ASISTIDO',
         admin_id: adminId,
         fecha_checkin: (r.entregadaEn ?? new Date()).toISOString(),
-        observaciones: texto(b.observaciones) ?? 'Vehículo entregado físicamente con contrato y licencia firmada',
+        observaciones: texto(b.observaciones) ?? 'Vehículo entregado físicamente con contrato y licencia validada',
       };
       const clave = process.env.BOOKING_API_KEY;
       const res = await fetch(url, {
