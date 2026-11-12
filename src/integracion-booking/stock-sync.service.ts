@@ -1,13 +1,17 @@
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fechaYSlotLocal, idPublico, slotDeHora, slotId } from './booking.util.js';
 import { RegistroService } from './registro.service.js';
 
-const DEADLINE_MS = 5000;
+// Booking (Azure) puede tardar en responder si estaba dormido: plazo amplio y reintentos con espera creciente.
+const DEADLINE_MS = 15_000;
+const ESPERAS_REINTENTO_MS = [2_000, 6_000];
+const REINTENTO_PENDIENTES_MS = 60_000;
+const MAX_INTENTOS_PENDIENTE = 30;
 const UMBRAL_FALLOS = 5;
 const PAUSA_BREAKER_MS = 60_000;
 
@@ -16,6 +20,17 @@ export interface ResultadoSync {
   canal: 'grpc' | 'rest' | 'ninguno';
   codigo?: string;
   detalle?: string;
+  /** Fallo de red, tiempo agotado o HTTP 408/429/5xx: vale la pena reintentar. Un rechazo definitivo (4xx, acuse con código) no. */
+  reintentable?: boolean;
+}
+
+interface PushPendiente {
+  vehiculoId: number;
+  fecha: string;
+  hora: string;
+  disponible: boolean;
+  motivo: string;
+  intentos: number;
 }
 
 function rutaProto(): string {
@@ -33,14 +48,45 @@ function rutaProto(): string {
  * Nunca hace fallar la operación de negocio que lo dispara.
  */
 @Injectable()
-export class StockSyncService {
+export class StockSyncService implements OnModuleDestroy {
   private readonly logger = new Logger('StockSync');
   private cliente: any;
   private ultimoTimestamp = 0;
   private fallosSeguidos = 0;
   private abiertoHasta = 0;
 
-  constructor(private readonly registro: RegistroService) {}
+  /** Esperas entre reintentos inmediatos (ajustable en pruebas). */
+  esperasMs: number[] = ESPERAS_REINTENTO_MS;
+  /** Avisos que no pudieron entregarse: se reintentan cada minuto hasta que Booking los acepte. */
+  private readonly pendientes = new Map<string, PushPendiente>();
+  private temporizador?: ReturnType<typeof setInterval>;
+
+  constructor(private readonly registro: RegistroService) {
+    if (process.env.NODE_ENV !== 'test') {
+      this.temporizador = setInterval(() => void this.reintentarPendientes(), REINTENTO_PENDIENTES_MS);
+      this.temporizador.unref?.();
+    }
+  }
+
+  onModuleDestroy(): void {
+    if (this.temporizador) clearInterval(this.temporizador);
+  }
+
+  get cantidadPendientes(): number {
+    return this.pendientes.size;
+  }
+
+  async reintentarPendientes(): Promise<void> {
+    if (this.pendientes.size === 0 || this.estadoCircuito() === 'OPEN') return;
+    for (const [clave, p] of [...this.pendientes]) {
+      if (p.intentos >= MAX_INTENTOS_PENDIENTE) {
+        this.pendientes.delete(clave);
+        this.registro.registrar('error', 'stock.push.abandonado', { clave, motivo: p.motivo, intentos: p.intentos });
+        continue;
+      }
+      await this.empujar(p.vehiculoId, p.fecha, p.hora, p.disponible, `${p.motivo}:reintento`);
+    }
+  }
 
   get habilitado(): boolean {
     return process.env.BOOKING_SYNC_ENABLED !== 'false' && process.env.NODE_ENV !== 'test';
@@ -94,8 +140,21 @@ export class StockSyncService {
 
     // Si hay URL REST de stock (guía de socios en Azure) se usa ese canal; si no, gRPC con respaldo REST.
     const urlGuia = process.env.BOOKING_REST_STOCK_URL;
-    let resultado = urlGuia ? await this.viaRestGuia(urlGuia, mensaje, motivo) : await this.viaGrpc(mensaje);
-    if (!urlGuia && !resultado.ok && !resultado.codigo) resultado = await this.viaRest(mensaje, resultado.detalle);
+    const intentar = async (): Promise<ResultadoSync> => {
+      let r = urlGuia ? await this.viaRestGuia(urlGuia, mensaje, motivo) : await this.viaGrpc(mensaje);
+      if (!urlGuia && !r.ok && !r.codigo) r = await this.viaRest(mensaje, r.detalle);
+      return r;
+    };
+    let resultado = await intentar();
+    for (let i = 0; i < this.esperasMs.length && !resultado.ok && !resultado.codigo && resultado.reintentable !== false; i++) {
+      await new Promise((r) => setTimeout(r, this.esperasMs[i]));
+      resultado = await intentar();
+    }
+
+    // Si no se pudo entregar, queda pendiente y se reintenta solo; un aviso más nuevo del mismo turno reemplaza al anterior.
+    const clavePendiente = `${mensaje.item_id}|${mensaje.slot_id}`;
+    if (resultado.ok || resultado.codigo || resultado.reintentable === false) this.pendientes.delete(clavePendiente);
+    else this.pendientes.set(clavePendiente, { vehiculoId, fecha, hora, disponible, motivo: motivo.replace(/:reintento$/, ''), intentos: (this.pendientes.get(clavePendiente)?.intentos ?? 0) + 1 });
 
     if (resultado.ok || resultado.codigo) this.fallosSeguidos = 0;
     else {
@@ -112,6 +171,7 @@ export class StockSyncService {
       ok: resultado.ok,
       codigo: resultado.codigo,
       detalle: resultado.detalle,
+      pendientes: this.pendientes.size,
     });
     return resultado;
   }
@@ -154,9 +214,9 @@ export class StockSyncService {
         signal: AbortSignal.timeout(DEADLINE_MS),
       });
       if (res.ok) return { ok: true, canal: 'rest', codigo: 'OK' };
-      return { ok: false, canal: 'rest', detalle: `REST HTTP ${res.status}` };
+      return { ok: false, canal: 'rest', detalle: `REST HTTP ${res.status}`, reintentable: res.status === 408 || res.status === 429 || res.status >= 500 };
     } catch (e) {
-      return { ok: false, canal: 'rest', detalle: `REST: ${(e as Error).message}` };
+      return { ok: false, canal: 'rest', detalle: `REST: ${(e as Error).message}`, reintentable: true };
     }
   }
 
