@@ -324,7 +324,7 @@ async function cargarSucursales() {
           method: 'POST',
           body: JSON.stringify({ km_retorno: Number(km), nivel_combustible: Number(combustible) }),
         });
-        alert(`Devolución registrada. Recorrió ${res.km_recorridos} km. ${res.cooldown?.mensaje ?? ''}`);
+        alert(`Devolución registrada. Recorrió ${res.km_recorridos} km. ${res.cooldown?.mensaje ?? ''} ${res.notificacion_booking?.enviada ? `Booking Central respondió acknowledged=${res.notificacion_booking.respuesta?.acknowledged ?? true}.` : res.notificacion_booking?.detalle?.startsWith('Reserva propia') ? '' : `Booking NO fue notificado: ${res.notificacion_booking?.detalle ?? 'sin detalle'}`}`);
       } catch (e) {
         alert(e.message);
       }

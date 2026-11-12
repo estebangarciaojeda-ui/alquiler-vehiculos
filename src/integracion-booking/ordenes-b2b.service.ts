@@ -465,46 +465,86 @@ export class OrdenesB2bService {
   }
 
   /** Devolución registrada por el administrador en el mostrador: cierra la orden e inicia la limpieza de 2 h. */
-  async devolverEnMostrador(idOPnr: string, cuerpo: unknown): Promise<Salida> {
-    return this.devolver(idOPnr, cuerpo, { correlationId: generarCorrelationId() });
+  async devolverEnMostrador(idOPnr: string, cuerpo: unknown, adminId = 'operador-mostrador'): Promise<Salida> {
+    const ctx: Ctx = { correlationId: generarCorrelationId() };
+    const salida = await this.devolver(idOPnr, cuerpo, ctx);
+    const r = await this.buscarOrden(idOPnr);
+    const notificacion =
+      r.origen === 'BOOKING'
+        ? await this.notificarCheckin(r, dic(cuerpo), adminId, ctx, 'DEVOLUCION')
+        : { enviada: false, detalle: 'Reserva propia del marketplace: Booking no la conoce, no se notifica.' };
+    return { ...salida, body: { ...dic(salida.body), notificacion_booking: notificacion } };
   }
 
-  private async notificarCheckin(r: Reserva, b: Dic, adminId: string, ctx: Ctx): Promise<Dic> {
+  /**
+   * Avisa a Booking por su endpoint publicado POST /reservas/{codigo}/checkin (CheckinNotificationDto).
+   * Booking solo define los estados RESERVADO y CONFIRMADO_ASISTIDO para reservas de socios, así que tanto la entrega como la
+   * devolución se envían con ese estado y se distinguen con `tipo` (ENTREGA | DEVOLUCION); Booking conserva el último evento.
+   */
+  private async notificarCheckin(r: Reserva, b: Dic, adminId: string, ctx: Ctx, tipo: 'ENTREGA' | 'DEVOLUCION' = 'ENTREGA'): Promise<Dic> {
     const base = (process.env.BOOKING_BASE_URL ?? 'https://booking-core-api.azurewebsites.net/api/v3').replace(/\/+$/, '');
     const url = `${base}/reservas/${encodeURIComponent(r.codigo)}/checkin`;
     const texto = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
     try {
       const conductor = r.conductor ?? {};
+      const cedula = texto(conductor.identificacion);
       const clientId = await this.clientes.asegurar({
         nombre: texto(conductor.full_name) ?? r.nombreCliente,
         email: texto(conductor.email) ?? r.email,
-        identificacion: texto(conductor.identificacion),
+        identificacion: cedula,
         telefono: texto(conductor.phone),
         licencia: texto(conductor.license_number),
       });
+      const esDevolucion = tipo === 'DEVOLUCION';
+      const recorridos = esDevolucion && r.kmRetorno !== null && r.kmSalida !== null ? r.kmRetorno - r.kmSalida : undefined;
+      const nivel = typeof b.nivel_combustible === 'number' ? b.nivel_combustible : undefined;
       const cuerpo = {
         external_order_id: r.codigo,
+        order_id: r.codigo,
+        pnr: r.codigo,
+        reservation_code: r.codigo,
         client_id: clientId,
+        ...(cedula ? { document_id: cedula, cedula, identificacion: cedula } : {}),
         estado: 'CONFIRMADO_ASISTIDO',
         admin_id: adminId,
-        fecha_checkin: (r.entregadaEn ?? new Date()).toISOString(),
-        observaciones: texto(b.observaciones) ?? 'Vehículo entregado físicamente con contrato y licencia validada',
+        fecha_checkin: ((esDevolucion ? r.devueltaEn : r.entregadaEn) ?? new Date()).toISOString(),
+        observaciones: esDevolucion
+          ? (texto(b.observaciones) ?? `Vehículo devuelto en mostrador. Recorrió ${recorridos ?? 0} km. Limpieza de ${COOLDOWN_MINUTOS / 60} h iniciada.`)
+          : (texto(b.observaciones) ?? 'Vehículo entregado físicamente con contrato y licencia validada'),
+        km_salida: r.kmSalida ?? undefined,
+        ...(nivel !== undefined ? { fuel_level: nivel } : {}),
+        proveedor: 'AutoSpot',
+        modulo: 'AUTOS',
+        tipo,
       };
       const clave = process.env.BOOKING_API_KEY;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Correlation-Id': ctx.correlationId, ...(clave ? { 'X-API-Key': clave } : {}) },
-        body: JSON.stringify(cuerpo),
-        signal: AbortSignal.timeout(8000),
-      });
+      // Booking (Azure) puede estar dormido: plazo amplio y un reintento ante fallo de red o 5xx.
+      let res: Response | undefined;
+      let falloRed: Error | undefined;
+      for (let intento = 0; intento < 2; intento++) {
+        try {
+          res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Correlation-Id': ctx.correlationId, ...(clave ? { 'X-API-Key': clave } : {}) },
+            body: JSON.stringify(cuerpo),
+            signal: AbortSignal.timeout(15_000),
+          });
+          falloRed = undefined;
+          if (res.status < 500) break;
+        } catch (e) {
+          falloRed = e as Error;
+        }
+        await new Promise((r2) => setTimeout(r2, 1500));
+      }
+      if (!res) throw falloRed ?? new Error('sin respuesta');
       const respuesta = await res.json().catch(() => null);
-      this.registro.registrar(res.ok ? 'info' : 'warn', 'booking.checkin', { correlation_id: ctx.correlationId, pnr: r.codigo, status: res.status });
+      this.registro.registrar(res.ok ? 'info' : 'warn', 'booking.checkin', { correlation_id: ctx.correlationId, pnr: r.codigo, tipo, status: res.status });
       return res.ok
-        ? { enviada: true, status: res.status, respuesta }
-        : { enviada: false, status: res.status, detalle: `Booking respondió HTTP ${res.status}.`, respuesta };
+        ? { enviada: true, tipo, status: res.status, respuesta }
+        : { enviada: false, tipo, status: res.status, detalle: `Booking respondió HTTP ${res.status}.`, respuesta };
     } catch (e) {
-      this.registro.registrar('warn', 'booking.checkin', { correlation_id: ctx.correlationId, pnr: r.codigo, error: (e as Error).message });
-      return { enviada: false, detalle: `No se pudo contactar a Booking: ${(e as Error).message}` };
+      this.registro.registrar('warn', 'booking.checkin', { correlation_id: ctx.correlationId, pnr: r.codigo, tipo, error: (e as Error).message });
+      return { enviada: false, tipo, detalle: `No se pudo contactar a Booking: ${(e as Error).message}` };
     }
   }
 

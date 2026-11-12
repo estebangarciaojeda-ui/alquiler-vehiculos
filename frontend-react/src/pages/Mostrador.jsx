@@ -78,7 +78,13 @@ export default function Mostrador() {
     if (combustible === null) return;
     try {
       const { data } = await adminApi.post(`/reservas/${r.id}/devolucion`, { km_retorno: Number(km), nivel_combustible: Number(combustible) });
-      setAviso({ tipo: 'success', texto: `Vehículo devuelto. Recorrió ${data.km_recorridos} km. ${data.cooldown?.mensaje ?? ''}` });
+      const n = data.notificacion_booking;
+      const avisoBooking = n?.enviada
+        ? ` Booking Central respondió acknowledged=${n.respuesta?.acknowledged ?? true}.`
+        : r.origen === 'BOOKING'
+          ? ` Pero Booking NO fue notificado: ${n?.detalle ?? 'sin detalle'}`
+          : '';
+      setAviso({ tipo: n?.enviada || r.origen !== 'BOOKING' ? 'success' : 'warning', texto: `Vehículo devuelto. Recorrió ${data.km_recorridos} km. ${data.cooldown?.mensaje ?? ''}${avisoBooking}` });
       setError('');
     } catch (e) {
       setError(e.response?.data?.message ?? 'No se pudo registrar la devolución.');
