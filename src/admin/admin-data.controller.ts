@@ -97,6 +97,20 @@ export class AdminDataController {
     }
   }
 
+  /** El administrador marca el auto como DISPONIBLE al terminar de limpiarlo (no espera las 2 h completas). */
+  @Post('reservas/:id/disponible')
+  async liberarAuto(@Param('id', ParseIntPipe) id: number) {
+    try {
+      return await this.ordenesB2b.liberarAutoEnMostrador(String(id));
+    } catch (error) {
+      if (error instanceof ProblemaV3Exception) {
+        const p = error.getResponse() as { detail?: string; title?: string };
+        throw new HttpException(p.detail ?? p.title ?? 'No se pudo habilitar el auto', error.getStatus());
+      }
+      throw error;
+    }
+  }
+
   /** El administrador registra en el mostrador la devolución del auto (km de retorno y combustible). */
   @Post('reservas/:id/devolucion')
   async devolverReserva(@Param('id', ParseIntPipe) id: number, @Body() cuerpo: Record<string, unknown>) {

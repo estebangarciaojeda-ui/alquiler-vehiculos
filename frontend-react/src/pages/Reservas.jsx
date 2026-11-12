@@ -12,6 +12,7 @@ const ESTADOS = {
   CANCELADA: { texto: 'CANCELADA', detalle: '' },
 };
 
+const enLimpieza = (r) => r.vehiculo?.estadoOperativo === 'EN_LIMPIEZA' && !!r.vehiculo?.disponibleDesde && new Date(r.vehiculo.disponibleDesde) > new Date();
 const fechaHora = (v) => (v ? new Date(v).toLocaleString('es-EC') : '—');
 const dinero = (v) => `$${Number(v ?? 0).toFixed(2)}`;
 
@@ -115,6 +116,19 @@ export default function Reservas() {
       setError('');
     } catch (e) {
       setError(mensajeError(e, 'No se pudo registrar la devolución.'));
+    }
+    await cargar();
+  }
+
+  // Fin anticipado de la limpieza: el auto queda DISPONIBLE y se repone el stock en Booking.
+  async function habilitarAuto(r) {
+    if (!confirm(`¿El ${r.vehiculo?.marca} ${r.vehiculo?.modelo} ya está limpio? Quedará DISPONIBLE ahora y volverá a aparecer en Booking, sin esperar el fin de las 2 horas.`)) return;
+    try {
+      const { data } = await adminApi.post(`/reservas/${r.id}/disponible`);
+      setAviso({ tipo: 'success', texto: data.mensaje });
+      setError('');
+    } catch (e) {
+      setError(e.response?.data?.message ?? 'No se pudo habilitar el auto.');
     }
     await cargar();
   }
@@ -252,6 +266,11 @@ export default function Reservas() {
                               Devolver vehículo
                             </button>
                           </>
+                        )}
+                        {r.estado_mostrador === 'COMPLETADA' && enLimpieza(r) && (
+                          <button className="btn btn-sm btn-warning me-1" onClick={() => habilitarAuto(r)}>
+                            Disponible
+                          </button>
                         )}
                         {r.estado_mostrador === 'COMPLETADA' && <small className="text-success me-2">Entrega confirmada · Vehículo devuelto</small>}
                         <button className="btn btn-sm btn-outline-danger" onClick={() => eliminar(r.id)}>

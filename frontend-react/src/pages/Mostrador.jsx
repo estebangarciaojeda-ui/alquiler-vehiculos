@@ -21,6 +21,7 @@ function tipoBusqueda(q) {
   return 'Nombre o dato del cliente';
 }
 
+const enLimpieza = (r) => r.vehiculo?.estadoOperativo === 'EN_LIMPIEZA' && !!r.vehiculo?.disponibleDesde && new Date(r.vehiculo.disponibleDesde) > new Date();
 const fechaHora = (v) => (v ? new Date(v).toLocaleString('es-EC') : '—');
 const sinSegundos = (fecha, hora) => `${fecha} ${hora ?? ''}`.trim();
 const idPublico = (id) => `auto-${String(id).padStart(3, '0')}`;
@@ -88,6 +89,18 @@ export default function Mostrador() {
       setError('');
     } catch (e) {
       setError(e.response?.data?.message ?? 'No se pudo registrar la devolución.');
+    }
+    await refrescar();
+  }
+
+  async function habilitarAuto(r) {
+    if (!confirm(`¿El ${r.vehiculo?.marca} ${r.vehiculo?.modelo} ya está limpio? Quedará DISPONIBLE ahora y volverá a aparecer en Booking, sin esperar el fin de las 2 horas.`)) return;
+    try {
+      const { data } = await adminApi.post(`/reservas/${r.id}/disponible`);
+      setAviso({ tipo: 'success', texto: data.mensaje });
+      setError('');
+    } catch (e) {
+      setError(e.response?.data?.message ?? 'No se pudo habilitar el auto.');
     }
     await refrescar();
   }
@@ -250,6 +263,11 @@ export default function Mostrador() {
                           Cancelar reserva
                         </button>
                       </>
+                    )}
+                    {r.estado_mostrador === 'COMPLETADA' && enLimpieza(r) && (
+                      <button className="btn btn-warning" onClick={() => habilitarAuto(r)}>
+                        Disponible (limpieza terminada)
+                      </button>
                     )}
                     {r.estado_mostrador === 'CONFIRMADO_ASISTIDO' && (
                       <button className="btn btn-success" onClick={() => devolver(r)}>

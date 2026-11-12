@@ -300,6 +300,20 @@ async function cargarSucursales() {
       });
     }),
   );
+  // Fin anticipado de la limpieza: el auto queda DISPONIBLE y se repone el stock en Booking.
+  tbody.querySelectorAll('[data-disponible]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      if (!confirm(`¿El ${b.dataset.auto} ya está limpio? Quedará DISPONIBLE ahora y volverá a aparecer en Booking, sin esperar el fin de las 2 horas.`)) return;
+      try {
+        const res = await api(`${ADMIN_API}/reservas/${b.dataset.disponible}/disponible`, { method: 'POST', body: '{}' });
+        alert(res.mensaje);
+      } catch (e) {
+        alert(e.message);
+      }
+      cargarReservas();
+    }),
+  );
+
   tbody.querySelectorAll('[data-cancelar]').forEach((b) =>
     b.addEventListener('click', async () => {
       if (!confirm(`¿Cancelar la reserva ${b.dataset.codigo}? Se libera el auto y se procesa el reembolso.`)) return;
@@ -446,6 +460,10 @@ async function cargarReservas() {
         }${
           r.estado_mostrador === 'RESERVADO'
             ? `<button data-entregar="${r.id}" data-nombre="${esc(r.nombreCliente)}" data-cedula="${esc(r.identificacion ?? '')}" data-licencia="${esc(r.conductor?.license_number ?? '')}" data-km="${r.vehiculo?.kilometrajeActual ?? 0}">Confirmar Entrega de Llaves / Check-in</button> `
+            : ''
+        }${
+          r.estado_mostrador === 'COMPLETADA' && r.vehiculo?.estadoOperativo === 'EN_LIMPIEZA' && r.vehiculo?.disponibleDesde && new Date(r.vehiculo.disponibleDesde) > new Date()
+            ? `<button data-disponible="${r.id}" data-auto="${esc((r.vehiculo?.marca ?? '') + ' ' + (r.vehiculo?.modelo ?? ''))}">Disponible</button> `
             : ''
         }${
           r.estado_mostrador === 'CONFIRMADO_ASISTIDO'

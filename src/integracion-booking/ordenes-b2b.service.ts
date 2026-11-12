@@ -468,6 +468,21 @@ export class OrdenesB2bService {
     return this.cancelar(idOPnr, { reason: motivo || 'Cancelada por el administrador', solicitante: 'ADMIN' }, { correlationId: generarCorrelationId() });
   }
 
+  /**
+   * El administrador confirma que el auto ya está limpio y lo deja DISPONIBLE sin esperar el fin de las 2 h
+   * (mismo cambio que PATCH /autos/{id}/estado del contrato): se repone el stock en Booking y vuelve a aparecer en las búsquedas.
+   */
+  async liberarAutoEnMostrador(idOPnr: string) {
+    const r = await this.buscarOrden(idOPnr);
+    const v = await this.vehiculos.findOneByOrFail({ id: r.vehiculoId });
+    if (!ventanaLimpieza(v)) {
+      throw new ProblemaV3Exception(409, 'ORDER_STATE_CONFLICT', 'El auto no está en limpieza', `El vehículo ${idPublico(v.id)} ya está disponible o no está en ciclo de limpieza.`);
+    }
+    const res = await this.flota.cambiarEstado(idPublico(v.id), 'DISPONIBLE');
+    this.registro.registrar('info', 'flota.liberado-manual', { pnr: r.codigo, auto_id: idPublico(v.id) });
+    return { ...res, mensaje: `Vehículo ${idPublico(v.id)} disponible. Stock repuesto en Booking.` };
+  }
+
   /** Devolución registrada por el administrador en el mostrador: cierra la orden e inicia la limpieza de 2 h. */
   async devolverEnMostrador(idOPnr: string, cuerpo: unknown, adminId = 'operador-mostrador'): Promise<Salida> {
     const ctx: Ctx = { correlationId: generarCorrelationId() };
