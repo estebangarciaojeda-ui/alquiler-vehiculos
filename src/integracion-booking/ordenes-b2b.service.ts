@@ -74,24 +74,35 @@ export class OrdenesB2bService implements OnModuleInit {
   }
 
   /**
-   * Reservas de Booking recibidas antes de reconocer la cédula en `license_number`: se les completa la identificación
-   * y se ligan a su cliente (sin duplicarlo). Es idempotente: solo toca las que aún no tienen identificación.
+   * Reservas de Booking: toma la cédula (`identificacion` o, si es una cédula válida, `license_number`), la deja en la reserva y la liga
+   * al cliente que tiene esa cédula, sin duplicarlo. Si la reserva estaba ligada a otra cuenta creada solo por la integración (antes de
+   * conocer la cédula) y esa cuenta ya no tiene reservas, se unifica. Es idempotente: no cambia nada que ya esté bien.
    */
   async completarCedulasPendientes(): Promise<number> {
-    const pendientes = await this.reservas
+    const candidatas = await this.reservas
       .createQueryBuilder('r')
       .where("r.origen = 'BOOKING'")
-      .andWhere("COALESCE(r.conductor->>'identificacion', '') = ''")
-      .andWhere("COALESCE(r.conductor->>'license_number', '') <> ''")
+      .andWhere("(COALESCE(r.conductor->>'identificacion', '') <> '' OR COALESCE(r.conductor->>'license_number', '') <> '')")
+      .orderBy('r.id', 'ASC')
       .getMany();
     let arregladas = 0;
-    for (const r of pendientes) {
-      const licencia = (r.conductor as Dic | null)?.license_number;
-      if (!esCedulaEcuatoriana(licencia)) continue;
+    for (const r of candidatas) {
+      const conductor = (r.conductor ?? {}) as Dic;
+      const explicita = typeof conductor.identificacion === 'string' && conductor.identificacion.trim() ? conductor.identificacion.trim() : undefined;
+      const cedula = explicita ?? (esCedulaEcuatoriana(conductor.license_number) ? conductor.license_number : undefined);
+      if (!cedula) continue;
       const cli = await this.clientes
-        .asegurarCuenta({ nombre: r.nombreCliente, email: r.email, identificacion: licencia, telefono: r.telefono, licencia })
+        .asegurarCuenta({ nombre: r.nombreCliente, email: r.email, identificacion: cedula, telefono: r.telefono, licencia: typeof conductor.license_number === 'string' ? conductor.license_number : undefined })
         .catch(() => null);
-      await this.reservas.update(r.id, { conductor: { ...(r.conductor as Dic), identificacion: licencia }, ...(cli && !r.cuentaId ? { cuentaId: cli.cuentaId } : {}) });
+      const cambios: { conductor?: Record<string, unknown>; cuentaId?: number } = {};
+      if (!explicita) cambios.conductor = { ...conductor, identificacion: cedula };
+      if (cli && r.cuentaId !== cli.cuentaId) cambios.cuentaId = cli.cuentaId;
+      if (Object.keys(cambios).length === 0) continue;
+      await this.reservas.update(r.id, cambios as never);
+      const anterior = r.cuentaId;
+      if (cli && anterior && anterior !== cli.cuentaId && (await this.reservas.countBy({ cuentaId: anterior })) === 0) {
+        await this.clientes.eliminarDuplicadoDeIntegracion(anterior, cedula).catch(() => false);
+      }
       arregladas++;
     }
     if (arregladas > 0) this.registro.registrar('info', 'reservas.cedulas-completadas', { total: arregladas });

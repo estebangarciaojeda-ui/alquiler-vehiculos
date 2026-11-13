@@ -24,12 +24,28 @@ export class ClientesService {
     return { client_id: idCliente(c.id), nombre: c.nombre, email: c.email, identificacion: c.identificacion };
   }
 
+  /** La cédula identifica al cliente antes que el correo: así una misma persona no se duplica aunque reserve con otro correo. */
   private existente(email: string | undefined, identificacion: string | undefined): Promise<Cuenta | null> {
     return (async () => {
-      const porCorreo = email ? await this.cuentas.findOneBy({ email: email.trim().toLowerCase() }) : null;
-      if (porCorreo) return porCorreo;
-      return identificacion ? this.cuentas.findOneBy({ identificacion: identificacion.trim() }) : null;
+      const ident = identificacion?.trim();
+      if (ident) {
+        const porCedula = await this.cuentas.findOne({ where: { identificacion: ident }, order: { id: 'ASC' } });
+        if (porCedula) return porCedula;
+      }
+      return email ? this.cuentas.findOneBy({ email: email.trim().toLowerCase() }) : null;
     })();
+  }
+
+  /**
+   * Borra una cuenta duplicada que la propia integración creó antes de conocer la cédula (origen BOOKING, rol cliente, sin cédula
+   * distinta). Nunca toca cuentas creadas desde la web ni administradores. El llamador comprueba que ya no tenga reservas.
+   */
+  async eliminarDuplicadoDeIntegracion(cuentaId: number, cedula: string): Promise<boolean> {
+    const c = await this.cuentas.findOneBy({ id: cuentaId });
+    if (!c || c.origen !== 'BOOKING' || c.rol !== 'cliente' || (c.identificacion && c.identificacion !== cedula)) return false;
+    await this.cuentas.delete(cuentaId);
+    this.registro.registrar('info', 'cliente.duplicado-unificado', { eliminado: idCliente(cuentaId), cedula });
+    return true;
   }
 
   async buscar(email?: string, identificacion?: string) {
