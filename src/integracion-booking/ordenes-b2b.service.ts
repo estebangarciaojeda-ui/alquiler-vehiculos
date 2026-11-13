@@ -546,6 +546,23 @@ export class OrdenesB2bService implements OnModuleInit {
     return { ...res, mensaje: `Vehículo ${idPublico(v.id)} disponible. Stock repuesto en Booking.` };
   }
 
+  /**
+   * Reenvía a Booking el último aviso de la reserva (entrega o devolución) por POST /reservas/{codigo}/checkin. Sirve cuando Booking
+   * no lo vio o cuando cambió algún dato (p. ej. el client_id tras unificar clientes). Es idempotente del lado de Booking.
+   */
+  async reenviarAvisoABooking(idOPnr: string, adminId = 'operador-mostrador'): Promise<Dic> {
+    const r = await this.buscarOrden(idOPnr);
+    if (r.origen !== 'BOOKING') {
+      throw new ProblemaV3Exception(409, 'ORDER_STATE_CONFLICT', 'Reserva propia', 'Esta reserva no vino de Booking: no hay nada que reenviar.');
+    }
+    const tipo = r.devueltaEn ? 'DEVOLUCION' : r.entregadaEn ? 'ENTREGA' : null;
+    if (!tipo) {
+      throw new ProblemaV3Exception(409, 'ORDER_STATE_CONFLICT', 'Aún sin entrega', 'Primero hay que confirmar la entrega de llaves; después se puede avisar a Booking.');
+    }
+    const notificacion = await this.notificarCheckin(r, {}, adminId, { correlationId: generarCorrelationId() }, tipo);
+    return { codigo: r.codigo, tipo, notificacion_booking: notificacion };
+  }
+
   /** Devolución registrada por el administrador en el mostrador: cierra la orden e inicia la limpieza de 2 h. */
   async devolverEnMostrador(idOPnr: string, cuerpo: unknown, adminId = 'operador-mostrador'): Promise<Salida> {
     const ctx: Ctx = { correlationId: generarCorrelationId() };

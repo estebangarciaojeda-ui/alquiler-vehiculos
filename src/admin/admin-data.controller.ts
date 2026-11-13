@@ -122,6 +122,20 @@ export class AdminDataController {
     }
   }
 
+  /** Reenvía a Booking el último aviso (entrega o devolución) de una reserva que vino de Booking. */
+  @Post('reservas/:id/reenviar-booking')
+  async reenviarABooking(@Param('id', ParseIntPipe) id: number) {
+    try {
+      return await this.ordenesB2b.reenviarAvisoABooking(String(id));
+    } catch (error) {
+      if (error instanceof ProblemaV3Exception) {
+        const p = error.getResponse() as { detail?: string; title?: string };
+        throw new HttpException(p.detail ?? p.title ?? 'No se pudo reenviar a Booking', error.getStatus());
+      }
+      throw error;
+    }
+  }
+
   /** Desde la lista de vehículos: deja el auto DISPONIBLE (termina la limpieza antes de las 2 h o lo saca de mantenimiento). */
   @Post('vehiculos/:id/disponible')
   async liberarVehiculo(@Param('id', ParseIntPipe) id: number) {

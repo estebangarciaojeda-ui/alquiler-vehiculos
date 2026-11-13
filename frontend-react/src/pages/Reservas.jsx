@@ -13,6 +13,13 @@ const ESTADOS = {
 };
 
 const enLimpieza = (r) => r.vehiculo?.estadoOperativo === 'EN_LIMPIEZA' && !!r.vehiculo?.disponibleDesde && new Date(r.vehiculo.disponibleDesde) > new Date();
+// Resume la respuesta de Booking y avisa si lo clasificó en otra vertical (debe ser AUTOS).
+function textoBooking(n) {
+  if (!n?.enviada) return null;
+  const vertical = n.respuesta?.vertical;
+  const alerta = vertical && vertical !== 'AUTOS' ? ` ⚠ Booking lo registró en la vertical ${vertical} (debería ser AUTOS): avisa a su equipo.` : '';
+  return `Booking Central respondió acknowledged=${n.respuesta?.acknowledged ?? true}${vertical ? ` (vertical: ${vertical})` : ''}.${alerta}`;
+}
 const fechaHora = (v) => (v ? new Date(v).toLocaleString('es-EC') : '—');
 const dinero = (v) => `$${Number(v ?? 0).toFixed(2)}`;
 
@@ -85,7 +92,7 @@ export default function Reservas() {
       const { data } = await adminApi.post(`/reservas/${r.id}/entrega`, { identificacion: cedula.trim(), licencia_conducir: licencia.trim(), km_salida: Number(km) });
       const n = data.notificacion_booking;
       if (n?.enviada) {
-        setAviso({ tipo: 'success', texto: `Entrega confirmada y Booking Central respondió acknowledged=${n.respuesta?.acknowledged ?? true}.` });
+        setAviso({ tipo: n.respuesta?.vertical && n.respuesta.vertical !== 'AUTOS' ? 'warning' : 'success', texto: `Entrega confirmada. ${textoBooking(n)}` });
       } else if (r.origen === 'BOOKING') {
         setAviso({ tipo: 'warning', texto: `Entrega confirmada, pero Booking NO fue notificado: ${n?.detalle ?? 'sin detalle'}` });
       } else {
@@ -108,7 +115,7 @@ export default function Reservas() {
       const { data } = await adminApi.post(`/reservas/${r.id}/devolucion`, { km_retorno: Number(km), nivel_combustible: Number(combustible) });
       const n = data.notificacion_booking;
       const avisoBooking = n?.enviada
-        ? ` Booking Central respondió acknowledged=${n.respuesta?.acknowledged ?? true}.`
+        ? ` ${textoBooking(n)}`
         : r.origen === 'BOOKING'
           ? ` Pero Booking NO fue notificado: ${n?.detalle ?? 'sin detalle'}`
           : '';
@@ -131,6 +138,20 @@ export default function Reservas() {
       setError(e.response?.data?.message ?? 'No se pudo habilitar el auto.');
     }
     await cargar();
+  }
+
+  // Reenvía a Booking el último aviso (entrega o devolución) y muestra lo que respondió.
+  async function reenviar(r) {
+    try {
+      const { data } = await adminApi.post(`/reservas/${r.id}/reenviar-booking`);
+      const n = data.notificacion_booking;
+      setAviso(n?.enviada
+        ? { tipo: n.respuesta?.vertical && n.respuesta.vertical !== 'AUTOS' ? 'warning' : 'success', texto: `Aviso de ${data.tipo === 'DEVOLUCION' ? 'devolución' : 'entrega'} reenviado. ${textoBooking(n)}` }
+        : { tipo: 'warning', texto: `Booking NO recibió el aviso: ${n?.detalle ?? 'sin detalle'}` });
+      setError('');
+    } catch (e) {
+      setError(e.response?.data?.message ?? 'No se pudo reenviar a Booking.');
+    }
   }
 
   return (
@@ -266,6 +287,11 @@ export default function Reservas() {
                               Devolver vehículo
                             </button>
                           </>
+                        )}
+                        {r.origen === 'BOOKING' && (r.estado_mostrador === 'CONFIRMADO_ASISTIDO' || r.estado_mostrador === 'COMPLETADA') && (
+                          <button className="btn btn-sm btn-outline-info me-1" onClick={() => reenviar(r)}>
+                            Reenviar a Booking
+                          </button>
                         )}
                         {r.estado_mostrador === 'COMPLETADA' && enLimpieza(r) && (
                           <button className="btn btn-sm btn-warning me-1" onClick={() => habilitarAuto(r)}>

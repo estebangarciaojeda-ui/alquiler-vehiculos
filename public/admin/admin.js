@@ -314,6 +314,21 @@ async function cargarSucursales() {
     }),
   );
 
+  // Reenvía a Booking el último aviso (entrega o devolución) y muestra lo que respondió.
+  tbody.querySelectorAll('[data-reenviar]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      try {
+        const res = await api(`${ADMIN_API}/reservas/${b.dataset.reenviar}/reenviar-booking`, { method: 'POST', body: '{}' });
+        const n = res.notificacion_booking;
+        alert(n?.enviada
+          ? `Aviso de ${res.tipo === 'DEVOLUCION' ? 'devolución' : 'entrega'} reenviado. Booking respondió acknowledged=${n.respuesta?.acknowledged ?? true} (vertical: ${n.respuesta?.vertical ?? 's/d'}).${n.respuesta?.vertical && n.respuesta.vertical !== 'AUTOS' ? ' ⚠ Debería ser AUTOS: avisa a Booking.' : ''}`
+          : `Booking NO recibió el aviso: ${n?.detalle ?? 'sin detalle'}`);
+      } catch (e) {
+        alert(e.message);
+      }
+    }),
+  );
+
   tbody.querySelectorAll('[data-cancelar]').forEach((b) =>
     b.addEventListener('click', async () => {
       if (!confirm(`¿Cancelar la reserva ${b.dataset.codigo}? Se libera el auto y se procesa el reembolso.`)) return;
@@ -494,6 +509,10 @@ async function cargarReservas() {
           r.estado_mostrador === 'CONFIRMADO_ASISTIDO'
             ? `<button data-devolver="${r.id}" data-km="${r.kmSalida ?? 0}">Registrar devolución</button> `
             : ''
+        }${
+          r.origen === 'BOOKING' && (r.estado_mostrador === 'CONFIRMADO_ASISTIDO' || r.estado_mostrador === 'COMPLETADA')
+            ? `<button data-reenviar="${r.id}">Reenviar a Booking</button> `
+            : ''
         }<button data-borrar="${r.id}" class="peligro">Borrar</button></td>
       </tr>`,
     )
@@ -514,7 +533,7 @@ async function cargarReservas() {
           body: JSON.stringify({ identificacion: cedula.trim(), licencia_conducir: licencia.trim(), km_salida: Number(km) }),
         });
         const n = res.notificacion_booking;
-        alert(`Entrega confirmada. ${n?.enviada ? `Booking Central respondió acknowledged=${n.respuesta?.acknowledged ?? true}.` : `Booking NO fue notificado: ${n?.detalle ?? 'sin detalle'}`}`);
+        alert(`Entrega confirmada. ${n?.enviada ? `Booking Central respondió acknowledged=${n.respuesta?.acknowledged ?? true} (vertical: ${n.respuesta?.vertical ?? 's/d'}).${n.respuesta?.vertical && n.respuesta.vertical !== 'AUTOS' ? ' ⚠ Debería ser AUTOS: avisa a Booking.' : ''}` : `Booking NO fue notificado: ${n?.detalle ?? 'sin detalle'}`}`);
       } catch (e) {
         alert(e.message);
       }
