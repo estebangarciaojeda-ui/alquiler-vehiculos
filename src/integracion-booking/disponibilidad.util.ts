@@ -99,3 +99,8 @@ export function alternativas(existentes: Ventana[], nueva: Ventana, hoy: string,
   }
   return salida;
 }
+
+/** Minutos que faltan para la recogida (fecha y hora locales de Ecuador); negativo si ya pasó. */
+export function minutosParaRecogida(fecha: string, hora?: string | null, ahora: Date = new Date()): number {
+  return aMinutos(fecha, hora) + OFFSET_ECUADOR_MIN - ahora.getTime() / 60_000;
+}

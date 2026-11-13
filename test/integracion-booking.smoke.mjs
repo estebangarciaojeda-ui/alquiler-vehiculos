@@ -233,6 +233,21 @@ const busqD = await http('POST', '/autos/search', { pickup_location: 'Quito', pi
 ok('POST /autos/search (contrato) excluye el auto ocupado', !(busqD.json?.data ?? []).some((a) => a.vehicle_id === autoD));
 for (const p of pnrs10c) if (p) await http('POST', `/autos/orders/${p}/cancel`, {});
 
+console.log('10d. Plazo de cancelación de 24 h');
+const manana3 = new Date(Date.parse(hoyEcuador) + 3 * 86_400_000).toISOString().slice(0, 10);
+const proxima = await http('POST', '/autos/orders/create', cuerpoReserva(autoD, hoyEcuador, manana3, { pickup_time: '23:59' }), { 'Idempotency-Key': randomUUID() });
+ok('orden con recogida en menos de 24 h => 201 (se puede reservar)', proxima.status === 201, JSON.stringify(proxima.json)?.slice(0, 200));
+const pnrProx = proxima.json?.pnr;
+const fuera = await http('POST', `/autos/orders/${pnrProx}/cancel`, {}, { 'Idempotency-Key': randomUUID() });
+ok('cancelar con menos de 24 h => 409 "Cancelación Fuera de Plazo" con el detalle del contrato', fuera.status === 409 && fuera.json?.title === 'Cancelación Fuera de Plazo' && /al menos 24 horas de anticipación/.test(fuera.json?.detail ?? ''), JSON.stringify(fuera.json)?.slice(0, 250));
+const fueraCliente = await http('POST', `/autos/orders/${pnrProx}/cancel`, { solicitante: 'CLIENTE', reason: 'Cambio de planes' }, { 'Idempotency-Key': randomUUID() });
+ok('también si el solicitante es CLIENTE => 409', fueraCliente.status === 409 && fueraCliente.json?.title === 'Cancelación Fuera de Plazo');
+ok('la orden sigue CONFIRMED tras el rechazo', (await http('GET', `/autos/orders/${pnrProx}`)).json?.status === 'CONFIRMED');
+const saga = await http('POST', `/autos/orders/${pnrProx}/cancel`, { solicitante: 'SAGA_ORCHESTRATOR', reason: 'Compensación Saga' }, { 'Idempotency-Key': randomUUID() });
+ok('la compensación de la Saga NO se bloquea por el plazo => 200 CANCELLED', saga.status === 200 && saga.json?.status === 'CANCELLED', JSON.stringify(saga.json)?.slice(0, 200));
+const otraVez = await http('POST', `/autos/orders/${pnrProx}/cancel`, {}, { 'Idempotency-Key': randomUUID() });
+ok('una orden ya cancelada responde 200 aunque haya pasado el plazo (idempotente)', otraVez.status === 200 && otraVez.json?.status === 'CANCELLED' && otraVez.json?.refund?.refund_id === saga.json?.refund?.refund_id);
+
 console.log('11. Regresión del marketplace existente');
 ok('GET /api/v1/vehiculos sigue funcionando', (await http('GET', '/api/v1/vehiculos')).status === 200);
 const mk = await http('GET', `/api/v1/vehiculos?desde=${sumarDias(81)}&hasta=${sumarDias(83)}`);

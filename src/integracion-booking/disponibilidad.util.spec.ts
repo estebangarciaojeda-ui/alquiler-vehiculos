@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alternativas, disponibleDesde, hayConflicto, ocupaciones, ventanaLimpieza, type Ventana } from './disponibilidad.util.js';
+import { alternativas, disponibleDesde, hayConflicto, minutosParaRecogida, ocupaciones, ventanaLimpieza, type Ventana } from './disponibilidad.util.js';
 
 const v = (r: string, d: string, hr = '10:00', hd = '10:00'): Ventana => ({ fechaRecogida: r, horaRecogida: hr, fechaDevolucion: d, horaDevolucion: hd });
 const reservado = [v('2026-12-12', '2026-12-13')];
@@ -91,5 +91,21 @@ describe('limpieza de 2 h tras una devolución: solo bloquea antes de su fin', (
     const ocupado = ocupaciones(enLimpieza, [v('2026-11-13', '2026-11-14')], ahora);
     expect(hayConflicto(ocupado, v('2026-11-13', '2026-11-14'))).toBe(true);
     expect(hayConflicto(ocupado, v('2026-11-15', '2026-11-16'))).toBe(false);
+  });
+});
+
+describe('plazo de cancelación de 24 h', () => {
+  // Hoy 12/11 10:00 hora de Ecuador = 15:00Z.
+  const ahora = new Date('2026-11-12T15:00:00Z');
+
+  it('calcula los minutos que faltan para la recogida en hora de Ecuador', () => {
+    expect(minutosParaRecogida('2026-11-13', '10:00', ahora)).toBe(24 * 60);
+    expect(minutosParaRecogida('2026-11-12', '12:30', ahora)).toBe(150);
+    expect(minutosParaRecogida('2026-11-12', '09:00', ahora)).toBe(-60);
+  });
+
+  it('con 24 h justas se permite; con un minuto menos no', () => {
+    expect(minutosParaRecogida('2026-11-13', '10:00', ahora) >= 24 * 60).toBe(true);
+    expect(minutosParaRecogida('2026-11-13', '09:59', ahora) >= 24 * 60).toBe(false);
   });
 });

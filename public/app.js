@@ -596,7 +596,11 @@ function pintarReservas(reservas) {
       const est = estadoDeReserva(r);
       let accion = '';
       if (est.clave === 'CONFIRMADA') {
-        accion = `<button type="button" class="btn btn-peligro" data-cancelar="${r.id}" data-codigo="${esc(r.codigo)}">Cancelar Renta</button>`;
+        // Cancelación gratuita solo con al menos 24 h de anticipación a la recogida (hora de Ecuador, UTC-5).
+        const horasParaRetiro = (new Date(`${r.fechaRecogida}T${r.horaRecogida}:00-05:00`).getTime() - Date.now()) / 3_600_000;
+        accion = horasParaRetiro >= 24
+          ? `<button type="button" class="btn btn-peligro" data-cancelar="${r.id}" data-codigo="${esc(r.codigo)}">Cancelar Renta</button>`
+          : '<span class="no-cancelable">Cancelación no disponible (menos de 24h antes del retiro del vehículo). La política de cancelación gratuita aplica hasta 24h antes.</span>';
       } else if (est.clave === 'ENTREGADA') {
         accion = '<span class="no-cancelable">Vehículo entregado / Alquiler en curso (No cancelable)</span>';
       }
@@ -621,7 +625,7 @@ function pintarReservas(reservas) {
 function cancelarReserva(id, codigo) {
   $('#dlg-contenido').innerHTML = `<div class="dlg">
     <div class="dlg-cab"><h2 id="dlg-titulo">Cancelar la renta ${esc(codigo)}</h2><button type="button" class="cerrar" data-cerrar aria-label="Cerrar">&times;</button></div>
-    <p>Se anulará esta reserva y el vehículo volverá a estar disponible para otros usuarios. Se procesará el reembolso del 100 % de tu renta.</p>
+    <p>Se anulará esta reserva y el vehículo volverá a estar disponible para otros usuarios. Se procesará el reembolso del 100 % de tu renta (cancelación gratuita hasta 24 h antes del retiro).</p>
     <p id="error-cancelar" class="error" role="alert" hidden></p>
     <div class="acciones">
       <button type="button" class="btn btn-secundario" data-cerrar>Volver</button>

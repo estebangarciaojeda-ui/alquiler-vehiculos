@@ -1,8 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { crearReembolso, DETALLE_NO_CANCELABLE, idPublico, MENSAJE_INVENTARIO } from '../integracion-booking/booking.util.js';
-import { alternativas, disponibleDesde, hayConflicto, ocupaciones } from '../integracion-booking/disponibilidad.util.js';
+import { crearReembolso, DETALLE_FUERA_DE_PLAZO, DETALLE_NO_CANCELABLE, idPublico, MENSAJE_INVENTARIO, PLAZO_CANCELACION_MIN } from '../integracion-booking/booking.util.js';
+import { alternativas, disponibleDesde, hayConflicto, minutosParaRecogida, ocupaciones } from '../integracion-booking/disponibilidad.util.js';
 import { StockSyncService } from '../integracion-booking/stock-sync.service.js';
 import { Cuenta } from '../cuentas/cuenta.entity.js';
 import { PagosService } from '../pagos/pagos.service.js';
@@ -133,6 +133,9 @@ export class ReservasService {
     const reserva = await this.findOne(id);
     if (reserva.estado === 'COMPLETADA' || reserva.entregadaEn) {
       throw new ConflictException({ statusCode: 409, error: 'Conflict', title: 'Cancelación No Permitida', message: DETALLE_NO_CANCELABLE });
+    }
+    if (reserva.estado !== 'CANCELADA' && minutosParaRecogida(reserva.fechaRecogida, reserva.horaRecogida) < PLAZO_CANCELACION_MIN) {
+      throw new ConflictException({ statusCode: 409, error: 'Conflict', title: 'Cancelación Fuera de Plazo', message: DETALLE_FUERA_DE_PLAZO });
     }
     if (reserva.estado !== 'CANCELADA') {
       await this.repo.update(id, { estado: 'CANCELADA', reembolso: crearReembolso(reserva.total) });

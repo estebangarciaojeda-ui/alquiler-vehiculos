@@ -14,10 +14,12 @@ import {
   diasEntre,
   enLimpiezaActiva,
   crearReembolso,
+  DETALLE_FUERA_DE_PLAZO,
   DETALLE_NO_CANCELABLE,
   generarCorrelationId,
   MENSAJE_INVENTARIO,
   MENSAJE_REEMBOLSO,
+  PLAZO_CANCELACION_MIN,
   generarPnr,
   hoyEnEcuador,
   idPublico,
@@ -30,7 +32,7 @@ import {
 import { ClientesService } from './clientes.service.js';
 import { EventosService } from './eventos.service.js';
 import { FlotaService } from './flota.service.js';
-import { alternativas, disponibleDesde, hayConflicto, ocupaciones, ventanaLimpieza } from './disponibilidad.util.js';
+import { alternativas, disponibleDesde, hayConflicto, minutosParaRecogida, ocupaciones, ventanaLimpieza } from './disponibilidad.util.js';
 import { ProblemaV3Exception } from './problema-v3.js';
 import { RegistroService } from './registro.service.js';
 import { StockSyncService } from './stock-sync.service.js';
@@ -325,6 +327,13 @@ export class OrdenesB2bService {
 
       if (r.estado === 'COMPLETADA' || (r.entregadaEn && !r.devueltaEn)) {
         throw new ProblemaV3Exception(409, 'CANCELLATION_NOT_ALLOWED', 'Cancelación No Permitida', DETALLE_NO_CANCELABLE);
+      }
+
+      // Plazo de 24 h: aplica al autoservicio del cliente. La compensación de la Saga (SAGA_ORCHESTRATOR) y el administrador del mostrador no se bloquean.
+      const solicitante = typeof b.solicitante === 'string' ? b.solicitante.trim().toUpperCase() : 'CLIENTE';
+      const exento = solicitante === 'SAGA_ORCHESTRATOR' || solicitante === 'ADMIN';
+      if (r.estado !== 'CANCELADA' && !exento && minutosParaRecogida(r.fechaRecogida, r.horaRecogida) < PLAZO_CANCELACION_MIN) {
+        throw new ProblemaV3Exception(409, 'CANCELLATION_NOT_ALLOWED', 'Cancelación Fuera de Plazo', DETALLE_FUERA_DE_PLAZO);
       }
 
       if (r.estado !== 'CANCELADA') {

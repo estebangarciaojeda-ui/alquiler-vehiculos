@@ -477,3 +477,7 @@ export function crearReembolso(monto: number) {
     message: MENSAJE_REEMBOLSO,
   };
 }
+
+/** Política de cancelación: solo con al menos 24 h de anticipación a la recogida (autoservicio del cliente). */
+export const PLAZO_CANCELACION_MIN = 24 * 60;
+export const DETALLE_FUERA_DE_PLAZO = 'La cancelación y reembolso solo están permitidos con al menos 24 horas de anticipación a la fecha y hora de recogida.';
