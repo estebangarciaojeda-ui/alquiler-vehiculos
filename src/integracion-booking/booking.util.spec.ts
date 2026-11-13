@@ -6,6 +6,7 @@ import {
   categoriasInternas,
   claveModelo,
   COOLDOWN_MINUTOS,
+  esCedulaEcuatoriana,
   esFechaValida,
   estadoEfectivo,
   fechaYSlotLocal,
@@ -228,5 +229,32 @@ describe('clientes del contrato v3.1', () => {
 
   it('arma el client_id público', () => {
     expect(idCliente(7)).toBe('CLI-00007');
+  });
+});
+
+describe('cédula ecuatoriana', () => {
+  it('valida el dígito verificador y la provincia', () => {
+    expect(esCedulaEcuatoriana('1720375003')).toBe(true);
+    expect(esCedulaEcuatoriana('1726874926')).toBe(true);
+    expect(esCedulaEcuatoriana('1720375004')).toBe(false);
+    expect(esCedulaEcuatoriana('9920375003')).toBe(false);
+    expect(esCedulaEcuatoriana('L123')).toBe(false);
+    expect(esCedulaEcuatoriana(1720375003)).toBe(false);
+  });
+
+  it('una orden de Booking con la cédula en license_number la toma como identificación', () => {
+    const r = normalizarSolicitudReserva(
+      { vehicle_id: 'auto-001', pickup_date: '2099-01-10', dropoff_date: '2099-01-12', coverage_type: 'BASIC', driver: { full_name: 'Angel Villanuez', email: 'angel@gmail.com', phone: '+593998765432', license_number: '1720375003', age: 30 } },
+      '2026-11-13',
+    );
+    expect(r.ok && r.valor.conductor.identificacion).toBe('1720375003');
+  });
+
+  it('una licencia que no es cédula no se toma como identificación; una identificación explícita manda', () => {
+    const base = { vehicle_id: 'auto-001', pickup_date: '2099-01-10', dropoff_date: '2099-01-12', coverage_type: 'BASIC' };
+    const a = normalizarSolicitudReserva({ ...base, driver: { full_name: 'A B', email: 'a@b.co', phone: '1', license_number: 'L-998877', age: 30 } }, '2026-11-13');
+    expect(a.ok && a.valor.conductor.identificacion).toBeUndefined();
+    const b = normalizarSolicitudReserva({ ...base, driver: { full_name: 'A B', email: 'a@b.co', phone: '1', license_number: '1720375003', identificacion: '1726874926', age: 30 } }, '2026-11-13');
+    expect(b.ok && b.valor.conductor.identificacion).toBe('1726874926');
   });
 });

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes } from 'node:crypto';
 import { DataSource, Repository } from 'typeorm';
@@ -14,6 +14,7 @@ import {
   diasEntre,
   enLimpiezaActiva,
   crearReembolso,
+  esCedulaEcuatoriana,
   DETALLE_FUERA_DE_PLAZO,
   DETALLE_NO_CANCELABLE,
   generarCorrelationId,
@@ -52,7 +53,7 @@ const dic = (v: unknown): Dic => (typeof v === 'object' && v !== null ? (v as Di
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
 
 @Injectable()
-export class OrdenesB2bService {
+export class OrdenesB2bService implements OnModuleInit {
   private readonly logger = new Logger('OrdenesB2B');
 
   constructor(
@@ -66,6 +67,36 @@ export class OrdenesB2bService {
     private readonly registro: RegistroService,
     private readonly clientes: ClientesService,
   ) {}
+
+  onModuleInit(): void {
+    if (process.env.NODE_ENV === 'test') return;
+    void this.completarCedulasPendientes().catch((e) => this.logger.warn(`No se pudieron completar las cédulas pendientes: ${(e as Error).message}`));
+  }
+
+  /**
+   * Reservas de Booking recibidas antes de reconocer la cédula en `license_number`: se les completa la identificación
+   * y se ligan a su cliente (sin duplicarlo). Es idempotente: solo toca las que aún no tienen identificación.
+   */
+  async completarCedulasPendientes(): Promise<number> {
+    const pendientes = await this.reservas
+      .createQueryBuilder('r')
+      .where("r.origen = 'BOOKING'")
+      .andWhere("COALESCE(r.conductor->>'identificacion', '') = ''")
+      .andWhere("COALESCE(r.conductor->>'license_number', '') <> ''")
+      .getMany();
+    let arregladas = 0;
+    for (const r of pendientes) {
+      const licencia = (r.conductor as Dic | null)?.license_number;
+      if (!esCedulaEcuatoriana(licencia)) continue;
+      const cli = await this.clientes
+        .asegurarCuenta({ nombre: r.nombreCliente, email: r.email, identificacion: licencia, telefono: r.telefono, licencia })
+        .catch(() => null);
+      await this.reservas.update(r.id, { conductor: { ...(r.conductor as Dic), identificacion: licencia }, ...(cli && !r.cuentaId ? { cuentaId: cli.cuentaId } : {}) });
+      arregladas++;
+    }
+    if (arregladas > 0) this.registro.registrar('info', 'reservas.cedulas-completadas', { total: arregladas });
+    return arregladas;
+  }
 
   // ── Idempotencia ──────────────────────────────────────────────────────
 

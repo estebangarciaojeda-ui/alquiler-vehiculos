@@ -55,7 +55,8 @@ export class AdminDataController {
           w.where('LOWER(r.codigo) LIKE :p', { p: patron })
             .orWhere('LOWER(r.email) LIKE :p', { p: patron })
             .orWhere('LOWER(r.nombreCliente) LIKE :p', { p: patron })
-            .orWhere("LOWER(COALESCE(r.conductor->>'identificacion', '')) LIKE :p", { p: patron });
+            .orWhere("LOWER(COALESCE(r.conductor->>'identificacion', '')) LIKE :p", { p: patron })
+            .orWhere("LOWER(COALESCE(r.conductor->>'license_number', '')) LIKE :p", { p: patron });
           if (correos.length > 0) w.orWhere('LOWER(r.email) IN (:...correos)', { correos });
         }),
       );
@@ -80,11 +81,21 @@ export class AdminDataController {
     const total = ordenadas.length;
     const filas = ordenadas.slice((pagina - 1) * tam, pagina * tam);
 
+    // El cliente de cada reserva: primero por la ligadura (cuentaId, p. ej. cédula ya registrada con otro correo) y si no por el correo.
     const emails = [...new Set(filas.map((r) => r.email.toLowerCase()))];
-    const cuentas = emails.length > 0 ? await this.cuentas.createQueryBuilder('c').where('LOWER(c.email) IN (:...emails)', { emails }).getMany() : [];
+    const ids = [...new Set(filas.map((r) => r.cuentaId).filter((x): x is number => x !== null))];
+    const cuentas =
+      emails.length > 0 || ids.length > 0
+        ? await this.cuentas
+            .createQueryBuilder('c')
+            .where(emails.length > 0 ? 'LOWER(c.email) IN (:...emails)' : '1=0', { emails })
+            .orWhere(ids.length > 0 ? 'c.id IN (:...ids)' : '1=0', { ids })
+            .getMany()
+        : [];
     const porCorreo = new Map(cuentas.map((c) => [c.email.toLowerCase(), c]));
+    const porId = new Map(cuentas.map((c) => [c.id, c]));
     const items = filas.map((r) => {
-      const cuenta = porCorreo.get(r.email.toLowerCase());
+      const cuenta = (r.cuentaId !== null ? porId.get(r.cuentaId) : undefined) ?? porCorreo.get(r.email.toLowerCase());
       return {
         ...r,
         estado_mostrador: estadoDe(r),

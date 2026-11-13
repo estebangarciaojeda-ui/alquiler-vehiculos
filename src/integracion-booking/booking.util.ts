@@ -343,7 +343,7 @@ export function normalizarSolicitudReserva(cuerpo: unknown, hoy: string): Result
         email: (email as string).toLowerCase(),
         phone: telefono as string,
         license_number: licencia as string,
-        identificacion: texto(primero(d, 'identificacion', 'cedula', 'document_number', 'id_number')),
+        identificacion: texto(primero(d, 'identificacion', 'cedula', 'document_number', 'document_id', 'id_number')) ?? (esCedulaEcuatoriana(licencia) ? licencia : undefined),
         country_license: texto(primero(d, 'country_license')) ?? 'Ecuador',
         age: edadFinal,
         flight_number: texto(primero(d, 'flight_number')),
@@ -481,3 +481,19 @@ export function crearReembolso(monto: number) {
 /** Política de cancelación: solo con al menos 24 h de anticipación a la recogida (autoservicio del cliente). */
 export const PLAZO_CANCELACION_MIN = 24 * 60;
 export const DETALLE_FUERA_DE_PLAZO = 'La cancelación y reembolso solo están permitidos con al menos 24 horas de anticipación a la fecha y hora de recogida.';
+
+/**
+ * Cédula ecuatoriana válida (10 dígitos, provincia 01-24 o 30, tercer dígito < 6 y dígito verificador módulo 10).
+ * En Ecuador el número de licencia de conducir coincide con la cédula, y Booking envía la cédula en `driver.license_number`.
+ */
+export function esCedulaEcuatoriana(valor: unknown): valor is string {
+  if (typeof valor !== 'string' || !/^\d{10}$/.test(valor)) return false;
+  const provincia = Number(valor.slice(0, 2));
+  if (!((provincia >= 1 && provincia <= 24) || provincia === 30) || Number(valor[2]) >= 6) return false;
+  let suma = 0;
+  for (let i = 0; i < 9; i++) {
+    const p = Number(valor[i]) * (i % 2 === 0 ? 2 : 1);
+    suma += p > 9 ? p - 9 : p;
+  }
+  return (10 - (suma % 10)) % 10 === Number(valor[9]);
+}
