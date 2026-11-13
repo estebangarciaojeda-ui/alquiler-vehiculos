@@ -110,34 +110,43 @@ describe('plazo de cancelación de 24 h', () => {
   });
 });
 
-describe('reserva entregada y sin devolver: ocupa el auto desde su recogida, sin fin', () => {
+describe('reserva activa sin devolver: ocupa el auto desde su recogida, sin fin', () => {
   const libre = { estadoOperativo: 'DISPONIBLE', disponibleDesde: null };
-  // Reserva del 28 al 29, con las llaves ya entregadas y sin devolución registrada.
-  const entregada: Ventana = { ...v('2026-11-28', '2026-11-29'), entregadaEn: new Date('2026-11-13T15:00:00Z'), devueltaEn: null };
-  const ocupado = ocupaciones(libre, [entregada]);
+  // Reserva del 28 al 29, solo reservada (sin entregar) y sin devolución registrada.
+  const reservada: Ventana = { ...v('2026-11-28', '2026-11-29'), entregadaEn: null, devueltaEn: null };
+  const entregada: Ventana = { ...reservada, entregadaEn: new Date('2026-11-13T15:00:00Z') };
 
-  it('las fechas anteriores a la recogida siguen libres', () => {
-    expect(hayConflicto(ocupado, v('2026-11-15', '2026-11-17'))).toBe(false);
-    expect(hayConflicto(ocupado, v('2026-11-26', '2026-11-27'))).toBe(false);
-  });
+  for (const [nombre, reserva] of [['reservada', reservada], ['entregada', entregada]] as const) {
+    describe(nombre, () => {
+      const ocupado = ocupaciones(libre, [reserva]);
 
-  it('desde la recogida en adelante no se ofrece hasta que se registre la devolución', () => {
-    expect(hayConflicto(ocupado, v('2026-11-28', '2026-11-29'))).toBe(true);
-    expect(hayConflicto(ocupado, v('2026-11-30', '2026-12-02'))).toBe(true);
-    expect(hayConflicto(ocupado, v('2027-03-01', '2027-03-03'))).toBe(true);
-  });
+      it('las fechas anteriores a la recogida siguen libres', () => {
+        expect(hayConflicto(ocupado, v('2026-11-15', '2026-11-17'))).toBe(false);
+        expect(hayConflicto(ocupado, v('2026-11-26', '2026-11-27'))).toBe(false);
+      });
 
-  it('no informa fecha de liberación (se sabrá al devolver) y sus alternativas son solo anteriores', () => {
-    expect(disponibleDesde(ocupado, v('2026-12-05', '2026-12-07'))).toBeNull();
-    const alt = alternativas(ocupado, v('2026-12-05', '2026-12-07'), '2026-11-13');
-    expect(alt.length).toBeGreaterThan(0);
-    expect(alt.every((a) => a.fecha_devolucion <= '2026-11-28')).toBe(true);
-  });
+      it('desde la recogida en adelante no se ofrece hasta que se registre la devolución', () => {
+        expect(hayConflicto(ocupado, v('2026-11-28', '2026-11-29'))).toBe(true);
+        expect(hayConflicto(ocupado, v('2026-11-30', '2026-12-02'))).toBe(true);
+        expect(hayConflicto(ocupado, v('2027-03-01', '2027-03-03'))).toBe(true);
+      });
 
-  it('una reserva sin entregar, o ya devuelta, conserva su ventana normal', () => {
-    expect(ventanasDeReservas([v('2026-11-28', '2026-11-29')])[0].fechaDevolucion).toBe('2026-11-29');
+      it('no informa fecha de liberación (se sabrá al devolver) y sus alternativas son solo anteriores', () => {
+        expect(disponibleDesde(ocupado, v('2026-12-05', '2026-12-07'))).toBeNull();
+        const alt = alternativas(ocupado, v('2026-12-05', '2026-12-07'), '2026-11-13');
+        expect(alt.length).toBeGreaterThan(0);
+        expect(alt.every((a) => a.fecha_devolucion <= '2026-11-28')).toBe(true);
+      });
+    });
+  }
+
+  it('una vez devuelta recupera su ventana normal y el auto vuelve a aparecer para fechas posteriores', () => {
     const devuelta = { ...entregada, devueltaEn: new Date('2026-11-29T15:00:00Z') };
     expect(ventanasDeReservas([devuelta])[0].fechaDevolucion).toBe('2026-11-29');
     expect(hayConflicto(ocupaciones(libre, [devuelta]), v('2026-11-30', '2026-12-02'))).toBe(false);
+  });
+
+  it('las ventanas simples (sin el campo devueltaEn) conservan su fecha de fin', () => {
+    expect(ventanasDeReservas([v('2026-11-28', '2026-11-29')])[0].fechaDevolucion).toBe('2026-11-29');
   });
 });

@@ -176,7 +176,7 @@ ok('GET /autos/orders sin credenciales => 401', (await http('GET', '/autos/order
 console.log('10b. Autenticación X-API-Key e Idempotency-Key obligatoria');
 const MALA = { 'X-API-Key': 'clave-incorrecta' };
 const cuerpoAuth = cuerpoReserva(autoD, sumarDias(120), sumarDias(122));
-const cuerpoCarrera = cuerpoReserva(autoD, sumarDias(130), sumarDias(132));
+const cuerpoCarrera = cuerpoReserva(autoD, sumarDias(110), sumarDias(112)); // anterior a la reserva del día 120 (las posteriores están ocultas hasta devolver)
 ok('crear sin clave => 401', (await http('POST', '/autos/orders/create', cuerpoAuth, { ...SIN, 'Idempotency-Key': randomUUID() })).status === 401);
 ok('crear con clave inválida => 401', (await http('POST', '/autos/orders/create', cuerpoAuth, { ...MALA, 'Idempotency-Key': randomUUID() })).status === 401);
 ok('consultar orden sin clave => 401', (await http('GET', `/autos/orders/${pnr}`, undefined, SIN)).status === 401);
@@ -221,16 +221,18 @@ const intento = async (nombre, a, b, extra, esperado) => {
 };
 await intento('día anterior completo (149->150 devolviendo 08:00) => 201 (2 h de limpieza antes de la recogida)', sumarDias(149), sumarDias(150), { dropoff_time: '08:00' }, 201);
 const choque = await intento('devolver a las 10:00 el día de la recogida => 409 (no alcanza la limpieza)', sumarDias(148), sumarDias(150), {}, 409);
-ok('el 409 trae code VEHICLE_UNAVAILABLE, disponible_desde y 3 fechas alternativas', choque.json?.code === 'VEHICLE_UNAVAILABLE' && !!choque.json?.disponible_desde && choque.json?.alternativas?.length === 3, JSON.stringify(choque.json));
+ok('el 409 trae code VEHICLE_UNAVAILABLE y 3 fechas alternativas (disponible_desde es null: se sabrá al devolver)', choque.json?.code === 'VEHICLE_UNAVAILABLE' && choque.json?.disponible_desde === null && choque.json?.alternativas?.length === 3, JSON.stringify(choque.json));
 ok('las alternativas son futuras y de la misma duración', choque.json?.alternativas?.every((a) => a.fecha_recogida >= sumarDias(0) && a.dias === 2));
 await intento('recoger el día de la devolución a las 10:00 => 409 (limpieza hasta las 12:00)', sumarDias(151), sumarDias(152), {}, 409);
-await intento('recoger el día de la devolución a las 12:00 => 201 (ya pasó la limpieza)', sumarDias(151), sumarDias(152), { pickup_time: '12:00' }, 201);
+await intento('recoger después de la devolución prevista (a las 12:00) => 409: no se ofrece hasta que se registre la devolución', sumarDias(151), sumarDias(152), { pickup_time: '12:00' }, 409);
+await intento('y tampoco para fechas más posteriores (155→156) => 409', sumarDias(155), sumarDias(156), {}, 409);
+await intento('fechas anteriores (140→141) siguen libres => 201', sumarDias(140), sumarDias(141), {}, 201);
 await intento('fechas que se cruzan => 409', sumarDias(150), sumarDias(152), {}, 409);
 const catD = await http('GET', '/autos?limit=200');
 ok('el auto sigue en el catálogo aunque tenga reservas futuras', catD.json?.data?.some((a) => a.vehicle_id === autoD));
 const web = await http('GET', `/api/v1/vehiculos?desde=${sumarDias(150)}&hasta=${sumarDias(151)}&incluirNoDisponibles=true`);
 const enWeb = Array.isArray(web.json) ? web.json.find((x) => `auto-${String(x.id).padStart(3, '0')}` === autoD) : null;
-ok('la web lo muestra como no disponible con fechas alternativas (no desaparece)', enWeb?.disponibleEnFechas === false && enWeb?.alternativas?.length > 0 && !!enWeb?.disponibleDesde, JSON.stringify(enWeb).slice(0, 200));
+ok('la web lo muestra como no disponible con fechas alternativas (no desaparece)', enWeb?.disponibleEnFechas === false && enWeb?.alternativas?.length > 0, JSON.stringify(enWeb).slice(0, 200));
 const webSin = await http('GET', `/api/v1/vehiculos?desde=${sumarDias(150)}&hasta=${sumarDias(151)}`);
 ok('sin la opción, la API de marketplace sigue excluyendo los ocupados', Array.isArray(webSin.json) && !webSin.json.some((x) => `auto-${String(x.id).padStart(3, '0')}` === autoD));
 const busqD = await http('POST', '/autos/search', { pickup_location: 'Quito', pickup_date: sumarDias(150), dropoff_date: sumarDias(151), pickup_time: '10:00', dropoff_time: '10:00', driver_age: 30 });

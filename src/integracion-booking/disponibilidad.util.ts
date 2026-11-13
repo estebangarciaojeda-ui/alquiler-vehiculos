@@ -10,7 +10,7 @@ export interface Ventana {
   horaRecogida?: string | null;
   fechaDevolucion: string;
   horaDevolucion?: string | null;
-  /** Solo para reservas reales: si se entregaron las llaves y aún no se devolvió, el auto está fuera hasta que se registre la devolución. */
+  /** Solo en reservas reales: mientras no haya devolución registrada, el auto queda ocupado desde la recogida hasta que se devuelva. */
   entregadaEn?: Date | null;
   devueltaEn?: Date | null;
 }
@@ -19,11 +19,12 @@ export interface Ventana {
 const SIN_FIN = '9999-12-31';
 
 /**
- * Una reserva ENTREGADA y sin devolver ocupa el auto desde su recogida y sin fecha de fin: hasta que no se registre la devolución
- * (más las 2 h de limpieza) el auto no se ofrece para fechas posteriores. Las fechas anteriores a su recogida siguen libres.
+ * Una reserva activa (confirmada) a la que aún no se le registró la devolución ocupa el auto desde su recogida y sin fecha de fin:
+ * hasta que no se devuelva (más las 2 h de limpieza) el auto no se ofrece para fechas posteriores. Las fechas anteriores a su
+ * recogida siguen libres. Se reconoce una reserva real por tener el campo `devueltaEn`; las ventanas simples conservan su fin.
  */
 export function ventanasDeReservas(reservas: Ventana[]): Ventana[] {
-  return reservas.map((r) => (r.entregadaEn && !r.devueltaEn ? { fechaRecogida: r.fechaRecogida, horaRecogida: r.horaRecogida, fechaDevolucion: SIN_FIN, horaDevolucion: '00:00' } : r));
+  return reservas.map((r) => ('devueltaEn' in r && !r.devueltaEn ? { fechaRecogida: r.fechaRecogida, horaRecogida: r.horaRecogida, fechaDevolucion: SIN_FIN, horaDevolucion: '00:00' } : r));
 }
 
 /** Ecuador (America/Guayaquil) está en UTC-5 todo el año (sin horario de verano). */
