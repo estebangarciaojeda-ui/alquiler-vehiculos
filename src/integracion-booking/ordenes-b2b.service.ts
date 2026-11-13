@@ -52,6 +52,9 @@ type Dic = Record<string, unknown>;
 const dic = (v: unknown): Dic => (typeof v === 'object' && v !== null ? (v as Dic) : {});
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
 
+/** Booking (Azure) puede tardar 30 s o más en frío: plazo por aviso y para la lectura de verificación. */
+const PLAZO_AVISO_BOOKING_MS = 25_000;
+const PLAZO_VERIFICACION_BOOKING_MS = 20_000;
 @Injectable()
 export class OrdenesB2bService implements OnModuleInit {
   private readonly logger = new Logger('OrdenesB2B');
@@ -575,7 +578,11 @@ export class OrdenesB2bService implements OnModuleInit {
     return { ...salida, body: { ...dic(salida.body), notificacion_booking: notificacion } };
   }
 
-  /** POST JSON a Booking con X-API-Key y X-Correlation-Id. Plazo amplio y un reintento ante fallo de red o 5xx (Booking en Azure puede estar dormido). */
+  /**
+   * POST JSON a Booking con X-API-Key y X-Correlation-Id. Plazo amplio (Booking en Azure puede tardar 30 s o más en frío) y un reintento
+   * solo ante un 5xx o un fallo de red inmediato. Tras un timeout NO se reintenta: Booking suele haber recibido y estar procesando el aviso,
+   * y repetirlo solo alarga la espera; el estado real se comprueba después con leerEstadoBooking.
+   */
   private async postBooking(url: string, cuerpo: Dic, ctx: Ctx): Promise<{ ok: boolean; status?: number; json?: Dic | null; error?: string }> {
     const clave = process.env.BOOKING_API_KEY;
     let res: Response | undefined;
@@ -586,12 +593,13 @@ export class OrdenesB2bService implements OnModuleInit {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Correlation-Id': ctx.correlationId, ...(clave ? { 'X-API-Key': clave } : {}) },
           body: JSON.stringify(cuerpo),
-          signal: AbortSignal.timeout(15_000),
+          signal: AbortSignal.timeout(PLAZO_AVISO_BOOKING_MS),
         });
         falloRed = undefined;
         if (res.status < 500) break;
       } catch (e) {
         falloRed = e as Error;
+        if ((e as Error).name === 'TimeoutError' || /timeout/i.test((e as Error).message)) break;
       }
       await new Promise((r2) => setTimeout(r2, 1500));
     }
@@ -601,10 +609,10 @@ export class OrdenesB2bService implements OnModuleInit {
   }
 
   /** Lo que Booking tiene registrado de la reserva (estado y vertical), para comprobar que quedó como AUTOS. */
-  private async leerEstadoBooking(base: string, codigo: string): Promise<Dic | null> {
+  private async leerEstadoBooking(base: string, codigo: string, plazoMs = 10_000): Promise<Dic | null> {
     try {
       const clave = process.env.BOOKING_API_KEY;
-      const res = await fetch(`${base}/reservas/${encodeURIComponent(codigo)}/estado`, { headers: clave ? { 'X-API-Key': clave } : {}, signal: AbortSignal.timeout(10_000) });
+      const res = await fetch(`${base}/reservas/${encodeURIComponent(codigo)}/estado`, { headers: clave ? { 'X-API-Key': clave } : {}, signal: AbortSignal.timeout(plazoMs) });
       if (!res.ok) return null;
       const d = (await res.json()) as Dic;
       return { estado: d.estado ?? d.status, vertical: d.vertical };
@@ -678,8 +686,23 @@ export class OrdenesB2bService implements OnModuleInit {
         this.registro.registrar(a.ok ? 'info' : 'warn', 'booking.checkin-autos', { correlation_id: ctx.correlationId, pnr: r.codigo, tipo, ruta, status: a.status, error: a.error });
       }
 
-      const estadoBooking = principal.ok || autos.enviada ? await this.leerEstadoBooking(base, r.codigo) : null;
       const enviada = principal.ok || autos.enviada === true;
+      const estadoBooking = await this.leerEstadoBooking(base, r.codigo, enviada ? 10_000 : PLAZO_VERIFICACION_BOOKING_MS);
+
+      // Booking respondió tarde (timeout) pero ya había registrado la entrega: se comprueba lo que tiene guardado antes de dar el aviso por perdido.
+      // Solo vale para la entrega: tras la devolución el estado sigue siendo CONFIRMADO_ASISTIDO y no prueba que procesó el aviso.
+      if (!enviada && !esDevolucion && estadoBooking?.estado === 'CONFIRMADO_ASISTIDO') {
+        this.registro.registrar('info', 'booking.checkin-verificado', { correlation_id: ctx.correlationId, pnr: r.codigo, tipo, vertical: estadoBooking.vertical });
+        return {
+          enviada: true,
+          tipo,
+          verificada_por_lectura: true,
+          detalle: 'Booking tardó en responder, pero su estado ya es CONFIRMADO_ASISTIDO: recibió el aviso de entrega.',
+          respuesta: { acknowledged: true, status: 'CONFIRMADO_ASISTIDO', vertical: estadoBooking.vertical },
+          autos,
+          estado_booking: estadoBooking,
+        };
+      }
       return enviada
         ? { enviada: true, tipo, status: principal.status, respuesta: principal.json ?? (autos.respuesta as Dic | null), autos, estado_booking: estadoBooking }
         : { enviada: false, tipo, status: principal.status, detalle: principal.error ? `No se pudo contactar a Booking: ${principal.error}` : `Booking respondió HTTP ${principal.status}.`, respuesta: principal.json, autos };
