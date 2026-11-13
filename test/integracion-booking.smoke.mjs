@@ -132,7 +132,11 @@ ok('la búsqueda con recogida dentro de la limpieza no lo ofrece', busqCd.status
 
 console.log('7. Cancelación / compensación Saga');
 const autoC = busq.json.data[1].vehicle_id;
-const autoD = busq.json.data[2].vehicle_id; // vehículo sin uso previo para las pruebas de autenticación/idempotencia
+// Vehículo para las pruebas de autenticación/idempotencia: visible hoy en el catálogo y libre en las fechas lejanas que se usan
+// (así no choca con reservas reales que ya existan en el servidor probado).
+const catAhora = (await http('GET', '/autos?limit=200')).json?.data?.map((a) => a.vehicle_id) ?? [];
+const libresLejos = (await http('POST', '/autos/search', { pickup_location: 'Quito', pickup_date: sumarDias(118), dropoff_date: sumarDias(155), pickup_time: '10:00', dropoff_time: '10:00', driver_age: 30 })).json?.data?.map((a) => a.vehicle_id) ?? [];
+const autoD = libresLejos.find((id) => id !== auto && id !== autoC && catAhora.includes(id)) ?? busq.json.data[2].vehicle_id;
 const rc = await http('POST', '/reservas', cuerpoReserva(autoC, sumarDias(60), sumarDias(62)), { 'Idempotency-Key': randomUUID() });
 const pnrC = rc.json?.pnr;
 const ck = randomUUID();
@@ -235,7 +239,10 @@ for (const p of pnrs10c) if (p) await http('POST', `/autos/orders/${p}/cancel`, 
 
 console.log('10d. Plazo de cancelación de 24 h');
 const manana3 = new Date(Date.parse(hoyEcuador) + 3 * 86_400_000).toISOString().slice(0, 10);
-const proxima = await http('POST', '/autos/orders/create', cuerpoReserva(autoD, hoyEcuador, manana3, { pickup_time: '23:59' }), { 'Idempotency-Key': randomUUID() });
+// Auto libre para recogerlo hoy a las 23:59 y devolverlo en 3 días (se toma de la búsqueda para no chocar con reservas existentes).
+const libresHoy = (await http('POST', '/autos/search', { pickup_location: 'Quito', pickup_date: hoyEcuador, dropoff_date: manana3, pickup_time: '23:59', dropoff_time: '10:00', driver_age: 30 })).json?.data?.map((a) => a.vehicle_id) ?? [];
+const autoE = libresHoy.find((id) => id !== auto && id !== autoC) ?? autoD;
+const proxima = await http('POST', '/autos/orders/create', cuerpoReserva(autoE, hoyEcuador, manana3, { pickup_time: '23:59' }), { 'Idempotency-Key': randomUUID() });
 ok('orden con recogida en menos de 24 h => 201 (se puede reservar)', proxima.status === 201, JSON.stringify(proxima.json)?.slice(0, 200));
 const pnrProx = proxima.json?.pnr;
 const fuera = await http('POST', `/autos/orders/${pnrProx}/cancel`, {}, { 'Idempotency-Key': randomUUID() });
