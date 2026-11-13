@@ -73,6 +73,17 @@ async function bootstrap() {
 
   app.useStaticAssets(join(process.cwd(), 'public'));
 
+  // Fotos de autos que aún no existen (p. ej. autos recién creados sin foto) y favicon: se responde con una imagen de respaldo en vez de 404,
+  // porque Booking y el panel cargan foto_url y un 404 deja el cuadro roto. Solo se llega aquí si el archivo real no existe.
+  app.use('/img/autos', (_req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.type('image/svg+xml').sendFile(join(process.cwd(), 'public/img/sin-foto.svg'));
+  });
+  app.use('/favicon.ico', (_req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.type('image/png').sendFile(join(process.cwd(), 'public/favicon-48.png'));
+  });
+
   // Frontend React (build de Vite), servido en /app. Fallback a index.html
   // para que funcione el ruteo del lado del cliente (React Router).
   const distReact = join(process.cwd(), 'frontend-react/dist');

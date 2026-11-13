@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes } from 'node:crypto';
 import { DataSource, Repository } from 'typeorm';
@@ -55,8 +55,11 @@ const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
 /** Booking (Azure) puede tardar 30 s o más en frío: plazo por aviso y para la lectura de verificación. */
 const PLAZO_AVISO_BOOKING_MS = 25_000;
 const PLAZO_VERIFICACION_BOOKING_MS = 20_000;
+/** Reintento automático del aviso de check-in cuando Booking no lo acepta a la primera. */
+const REINTENTO_AVISOS_MS = 45_000;
+const MAX_REINTENTOS_AVISO = 8;
 @Injectable()
-export class OrdenesB2bService implements OnModuleInit {
+export class OrdenesB2bService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger('OrdenesB2B');
 
   constructor(
@@ -71,9 +74,50 @@ export class OrdenesB2bService implements OnModuleInit {
     private readonly clientes: ClientesService,
   ) {}
 
+  /** Avisos de check-in a Booking que no llegaron bien (404, 5xx o timeout): se reintentan solos hasta que Booking los acepte. */
+  private readonly avisosPendientes = new Map<string, { reservaId: number; tipo: 'ENTREGA' | 'DEVOLUCION'; intentos: number }>();
+  private temporizadorAvisos?: NodeJS.Timeout;
+  private reintentandoAvisos = false;
+
   onModuleInit(): void {
     if (process.env.NODE_ENV === 'test') return;
     void this.completarCedulasPendientes().catch((e) => this.logger.warn(`No se pudieron completar las cédulas pendientes: ${(e as Error).message}`));
+    this.temporizadorAvisos = setInterval(() => void this.reintentarAvisosPendientes(), REINTENTO_AVISOS_MS);
+    this.temporizadorAvisos.unref();
+  }
+
+  onModuleDestroy(): void {
+    if (this.temporizadorAvisos) clearInterval(this.temporizadorAvisos);
+  }
+
+  /** Reintenta los avisos pendientes (uno tras otro). Se detiene por reserva cuando Booking responde bien o tras MAX_REINTENTOS_AVISO intentos. */
+  async reintentarAvisosPendientes(): Promise<number> {
+    if (this.reintentandoAvisos || this.avisosPendientes.size === 0) return 0;
+    this.reintentandoAvisos = true;
+    let resueltos = 0;
+    try {
+      for (const [codigo, p] of [...this.avisosPendientes]) {
+        const r = await this.reservas.findOneBy({ id: p.reservaId });
+        if (!r || r.estado === 'CANCELADA' || (p.tipo === 'ENTREGA' && r.devueltaEn)) {
+          this.avisosPendientes.delete(codigo);
+          continue;
+        }
+        p.intentos += 1;
+        const n = await this.notificarCheckin(r, {}, 'reintento-automatico', { correlationId: generarCorrelationId() }, p.tipo);
+        if (n.enviada === true && n.principal_ok === true) {
+          this.avisosPendientes.delete(codigo);
+          resueltos += 1;
+        } else if (p.intentos >= MAX_REINTENTOS_AVISO) {
+          this.avisosPendientes.delete(codigo);
+          this.registro.registrar('warn', 'booking.checkin-abandonado', { pnr: codigo, tipo: p.tipo, intentos: p.intentos });
+        }
+      }
+    } catch (e) {
+      this.logger.warn(`Reintento de avisos a Booking: ${(e as Error).message}`);
+    } finally {
+      this.reintentandoAvisos = false;
+    }
+    return resueltos;
   }
 
   /**
@@ -654,6 +698,12 @@ export class OrdenesB2bService implements OnModuleInit {
         order_id: r.codigo,
         pnr: r.codigo,
         reservation_code: r.codigo,
+        // Alias documentados en CheckinNotificationDto de Booking: su búsqueda de la reserva puede usar cualquiera de ellos.
+        codigo_reserva: r.codigo,
+        localizador: r.codigo,
+        reserva_id: r.codigo,
+        reservation_id: r.codigo,
+        id: r.codigo,
         client_id: clientId,
         ...(cedula ? { document_id: cedula, cedula, identificacion: cedula } : {}),
         estado: 'CONFIRMADO_ASISTIDO',
@@ -687,6 +737,9 @@ export class OrdenesB2bService implements OnModuleInit {
       }
 
       const enviada = principal.ok || autos.enviada === true;
+      // Si la ruta principal falló, el aviso queda en cola para reintentarse solo (si se resuelve antes, p. ej. con "Reenviar", se retira).
+      if (principal.ok) this.avisosPendientes.delete(r.codigo);
+      else this.avisosPendientes.set(r.codigo, { reservaId: r.id, tipo, intentos: this.avisosPendientes.get(r.codigo)?.intentos ?? 0 });
       const estadoBooking = await this.leerEstadoBooking(base, r.codigo, enviada ? 10_000 : PLAZO_VERIFICACION_BOOKING_MS);
 
       // Booking respondió tarde (timeout) pero ya había registrado la entrega: se comprueba lo que tiene guardado antes de dar el aviso por perdido.
@@ -695,6 +748,7 @@ export class OrdenesB2bService implements OnModuleInit {
         this.registro.registrar('info', 'booking.checkin-verificado', { correlation_id: ctx.correlationId, pnr: r.codigo, tipo, vertical: estadoBooking.vertical });
         return {
           enviada: true,
+          principal_ok: false,
           tipo,
           verificada_por_lectura: true,
           detalle: 'Booking tardó en responder, pero su estado ya es CONFIRMADO_ASISTIDO: recibió el aviso de entrega.',
@@ -704,7 +758,7 @@ export class OrdenesB2bService implements OnModuleInit {
         };
       }
       return enviada
-        ? { enviada: true, tipo, status: principal.status, respuesta: principal.json ?? (autos.respuesta as Dic | null), autos, estado_booking: estadoBooking }
+        ? { enviada: true, principal_ok: principal.ok, tipo, status: principal.status, respuesta: principal.json ?? (autos.respuesta as Dic | null), autos, estado_booking: estadoBooking }
         : { enviada: false, tipo, status: principal.status, detalle: principal.error ? `No se pudo contactar a Booking: ${principal.error}` : `Booking respondió HTTP ${principal.status}.`, respuesta: principal.json, autos };
     } catch (e) {
       this.registro.registrar('warn', 'booking.checkin', { correlation_id: ctx.correlationId, pnr: r.codigo, tipo, error: (e as Error).message });
