@@ -33,7 +33,7 @@ import {
 import { ClientesService } from './clientes.service.js';
 import { EventosService } from './eventos.service.js';
 import { FlotaService } from './flota.service.js';
-import { alternativas, disponibleDesde, hayConflicto, minutosParaRecogida, ocupaciones, ventanaLimpieza } from './disponibilidad.util.js';
+import { alternativas, disponibleDesde, hayConflicto, minutosParaRecogida, ocupaciones, ventanaLimpieza, ventanasDeReservas } from './disponibilidad.util.js';
 import { ProblemaV3Exception } from './problema-v3.js';
 import { RegistroService } from './registro.service.js';
 import { StockSyncService } from './stock-sync.service.js';
@@ -301,7 +301,7 @@ export class OrdenesB2bService implements OnModuleInit {
       const ocupado = ocupaciones(v, activas);
       if (hayConflicto(ocupado, pedida)) {
         const libreDesde = disponibleDesde(ocupado, pedida);
-        const porLimpieza = !!limpieza && hayConflicto([limpieza], pedida) && !hayConflicto(activas, pedida);
+        const porLimpieza = !!limpieza && hayConflicto([limpieza], pedida) && !hayConflicto(ventanasDeReservas(activas), pedida);
         if (porLimpieza) {
           throw new ProblemaV3Exception(
             409,
@@ -575,14 +575,55 @@ export class OrdenesB2bService implements OnModuleInit {
     return { ...salida, body: { ...dic(salida.body), notificacion_booking: notificacion } };
   }
 
+  /** POST JSON a Booking con X-API-Key y X-Correlation-Id. Plazo amplio y un reintento ante fallo de red o 5xx (Booking en Azure puede estar dormido). */
+  private async postBooking(url: string, cuerpo: Dic, ctx: Ctx): Promise<{ ok: boolean; status?: number; json?: Dic | null; error?: string }> {
+    const clave = process.env.BOOKING_API_KEY;
+    let res: Response | undefined;
+    let falloRed: Error | undefined;
+    for (let intento = 0; intento < 2; intento++) {
+      try {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Correlation-Id': ctx.correlationId, ...(clave ? { 'X-API-Key': clave } : {}) },
+          body: JSON.stringify(cuerpo),
+          signal: AbortSignal.timeout(15_000),
+        });
+        falloRed = undefined;
+        if (res.status < 500) break;
+      } catch (e) {
+        falloRed = e as Error;
+      }
+      await new Promise((r2) => setTimeout(r2, 1500));
+    }
+    if (!res) return { ok: false, error: falloRed?.message ?? 'sin respuesta' };
+    const json = (await res.json().catch(() => null)) as Dic | null;
+    return { ok: res.ok, status: res.status, json };
+  }
+
+  /** Lo que Booking tiene registrado de la reserva (estado y vertical), para comprobar que quedó como AUTOS. */
+  private async leerEstadoBooking(base: string, codigo: string): Promise<Dic | null> {
+    try {
+      const clave = process.env.BOOKING_API_KEY;
+      const res = await fetch(`${base}/reservas/${encodeURIComponent(codigo)}/estado`, { headers: clave ? { 'X-API-Key': clave } : {}, signal: AbortSignal.timeout(10_000) });
+      if (!res.ok) return null;
+      const d = (await res.json()) as Dic;
+      return { estado: d.estado ?? d.status, vertical: d.vertical };
+    } catch {
+      return null;
+    }
+  }
+
   /**
-   * Avisa a Booking por su endpoint publicado POST /reservas/{codigo}/checkin (CheckinNotificationDto).
-   * Booking solo define los estados RESERVADO y CONFIRMADO_ASISTIDO para reservas de socios, así que tanto la entrega como la
-   * devolución se envían con ese estado y se distinguen con `tipo` (ENTREGA | DEVOLUCION); Booking conserva el último evento.
+   * Avisa a Booking, en este orden:
+   *  1) POST /reservas/{codigo}/checkin (contrato v3.1): estado CONFIRMADO_ASISTIDO con cédula, client_id, km, etc.
+   *  2) POST /autos/orders/{codigo}/checkin-entrega o checkin-devolucion (contrato autos v3, rutas que Booking ahora acepta): hace que
+   *     Booking la registre en la vertical AUTOS. Va después porque Booking conserva la vertical del último aviso.
+   * Al final lee el estado que Booking quedó con la reserva. Booking solo define RESERVADO y CONFIRMADO_ASISTIDO para socios, así que
+   * entrega y devolución se distinguen con `tipo` (ENTREGA | DEVOLUCION).
    */
   private async notificarCheckin(r: Reserva, b: Dic, adminId: string, ctx: Ctx, tipo: 'ENTREGA' | 'DEVOLUCION' = 'ENTREGA'): Promise<Dic> {
     const base = (process.env.BOOKING_BASE_URL ?? 'https://booking-core-api.azurewebsites.net/api/v3').replace(/\/+$/, '');
-    const url = `${base}/reservas/${encodeURIComponent(r.codigo)}/checkin`;
+    const codigo = encodeURIComponent(r.codigo);
     const texto = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
     try {
       const conductor = r.conductor ?? {};
@@ -597,7 +638,10 @@ export class OrdenesB2bService implements OnModuleInit {
       const esDevolucion = tipo === 'DEVOLUCION';
       const recorridos = esDevolucion && r.kmRetorno !== null && r.kmSalida !== null ? r.kmRetorno - r.kmSalida : undefined;
       const nivel = typeof b.nivel_combustible === 'number' ? b.nivel_combustible : undefined;
-      const cuerpo = {
+      const observaciones = esDevolucion
+        ? (texto(b.observaciones) ?? `Vehículo devuelto en mostrador. Recorrió ${recorridos ?? 0} km. Limpieza de ${COOLDOWN_MINUTOS / 60} h iniciada.`)
+        : (texto(b.observaciones) ?? 'Vehículo entregado físicamente con contrato y licencia validada');
+      const cuerpo: Dic = {
         external_order_id: r.codigo,
         order_id: r.codigo,
         pnr: r.codigo,
@@ -607,40 +651,38 @@ export class OrdenesB2bService implements OnModuleInit {
         estado: 'CONFIRMADO_ASISTIDO',
         admin_id: adminId,
         fecha_checkin: ((esDevolucion ? r.devueltaEn : r.entregadaEn) ?? new Date()).toISOString(),
-        observaciones: esDevolucion
-          ? (texto(b.observaciones) ?? `Vehículo devuelto en mostrador. Recorrió ${recorridos ?? 0} km. Limpieza de ${COOLDOWN_MINUTOS / 60} h iniciada.`)
-          : (texto(b.observaciones) ?? 'Vehículo entregado físicamente con contrato y licencia validada'),
+        observaciones,
         km_salida: r.kmSalida ?? undefined,
         ...(nivel !== undefined ? { fuel_level: nivel } : {}),
         proveedor: 'AutoSpot',
         modulo: 'AUTOS',
         tipo,
       };
-      const clave = process.env.BOOKING_API_KEY;
-      // Booking (Azure) puede estar dormido: plazo amplio y un reintento ante fallo de red o 5xx.
-      let res: Response | undefined;
-      let falloRed: Error | undefined;
-      for (let intento = 0; intento < 2; intento++) {
-        try {
-          res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Correlation-Id': ctx.correlationId, ...(clave ? { 'X-API-Key': clave } : {}) },
-            body: JSON.stringify(cuerpo),
-            signal: AbortSignal.timeout(15_000),
-          });
-          falloRed = undefined;
-          if (res.status < 500) break;
-        } catch (e) {
-          falloRed = e as Error;
-        }
-        await new Promise((r2) => setTimeout(r2, 1500));
+      const principal = await this.postBooking(`${base}/reservas/${codigo}/checkin`, cuerpo, ctx);
+      this.registro.registrar(principal.ok ? 'info' : 'warn', 'booking.checkin', { correlation_id: ctx.correlationId, pnr: r.codigo, tipo, status: principal.status, error: principal.error });
+
+      // Ruta de autos del contrato (CheckinEntregaRequestV2 / CheckinDevolucionRequestV2).
+      const licencia = texto(conductor.license_number) ?? cedula;
+      const cuerpoAutos: Dic | null = esDevolucion
+        ? { km_retorno: r.kmRetorno ?? 0, ...(nivel !== undefined ? { nivel_combustible: nivel } : {}), observaciones }
+        : licencia
+          ? { licencia_conducir: licencia, km_salida: r.kmSalida ?? 0, tecnico_entrega: adminId }
+          : null;
+      let autos: Dic = { enviada: false, detalle: 'Sin licencia del conductor: no se puede avisar por la ruta de autos.' };
+      if (cuerpoAutos) {
+        const ruta = esDevolucion ? 'checkin-devolucion' : 'checkin-entrega';
+        const a = await this.postBooking(`${base}/autos/orders/${codigo}/${ruta}`, cuerpoAutos, ctx);
+        autos = a.ok
+          ? { enviada: true, status: a.status, respuesta: a.json }
+          : { enviada: false, status: a.status, detalle: a.error ?? `Booking respondió HTTP ${a.status}${typeof a.json?.detail === 'string' ? `: ${a.json.detail}` : ''}.`, respuesta: a.json };
+        this.registro.registrar(a.ok ? 'info' : 'warn', 'booking.checkin-autos', { correlation_id: ctx.correlationId, pnr: r.codigo, tipo, ruta, status: a.status, error: a.error });
       }
-      if (!res) throw falloRed ?? new Error('sin respuesta');
-      const respuesta = await res.json().catch(() => null);
-      this.registro.registrar(res.ok ? 'info' : 'warn', 'booking.checkin', { correlation_id: ctx.correlationId, pnr: r.codigo, tipo, status: res.status });
-      return res.ok
-        ? { enviada: true, tipo, status: res.status, respuesta }
-        : { enviada: false, tipo, status: res.status, detalle: `Booking respondió HTTP ${res.status}.`, respuesta };
+
+      const estadoBooking = principal.ok || autos.enviada ? await this.leerEstadoBooking(base, r.codigo) : null;
+      const enviada = principal.ok || autos.enviada === true;
+      return enviada
+        ? { enviada: true, tipo, status: principal.status, respuesta: principal.json ?? (autos.respuesta as Dic | null), autos, estado_booking: estadoBooking }
+        : { enviada: false, tipo, status: principal.status, detalle: principal.error ? `No se pudo contactar a Booking: ${principal.error}` : `Booking respondió HTTP ${principal.status}.`, respuesta: principal.json, autos };
     } catch (e) {
       this.registro.registrar('warn', 'booking.checkin', { correlation_id: ctx.correlationId, pnr: r.codigo, tipo, error: (e as Error).message });
       return { enviada: false, tipo, detalle: `No se pudo contactar a Booking: ${(e as Error).message}` };

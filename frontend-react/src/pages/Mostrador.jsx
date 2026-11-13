@@ -22,12 +22,14 @@ function tipoBusqueda(q) {
 }
 
 const enLimpieza = (r) => r.vehiculo?.estadoOperativo === 'EN_LIMPIEZA' && !!r.vehiculo?.disponibleDesde && new Date(r.vehiculo.disponibleDesde) > new Date();
-// Resume la respuesta de Booking y avisa si lo clasificó en otra vertical (debe ser AUTOS).
+// Resume lo que Booking respondió y cómo quedó registrada la reserva (estado y vertical, que debe ser AUTOS).
 function textoBooking(n) {
   if (!n?.enviada) return null;
-  const vertical = n.respuesta?.vertical;
-  const alerta = vertical && vertical !== 'AUTOS' ? ` ⚠ Booking lo registró en la vertical ${vertical} (debería ser AUTOS): avisa a su equipo.` : '';
-  return `Booking Central respondió acknowledged=${n.respuesta?.acknowledged ?? true}${vertical ? ` (vertical: ${vertical})` : ''}.${alerta}`;
+  const vertical = n.estado_booking?.vertical ?? n.respuesta?.vertical;
+  const estadoB = n.estado_booking?.estado;
+  const alerta = vertical && vertical !== 'AUTOS' ? ` ⚠ Booking la registró en la vertical ${vertical} (debería ser AUTOS): avisa a su equipo.` : '';
+  const rutaAutos = n.autos && !n.autos.enviada ? ` La ruta de autos de Booking no aceptó el aviso: ${n.autos.detalle}` : '';
+  return `Booking Central respondió acknowledged=${n.respuesta?.acknowledged ?? true}${estadoB ? ` · estado en Booking: ${estadoB}` : ''}${vertical ? ` (vertical: ${vertical})` : ''}.${alerta}${rutaAutos}`;
 }
 const fechaHora = (v) => (v ? new Date(v).toLocaleString('es-EC') : '—');
 const sinSegundos = (fecha, hora) => `${fecha} ${hora ?? ''}`.trim();
@@ -69,7 +71,7 @@ export default function Mostrador() {
     try {
       const { data } = await adminApi.post(`/reservas/${r.id}/entrega`, { identificacion: cedula.trim(), licencia_conducir: licencia.trim(), km_salida: Number(km) });
       const n = data.notificacion_booking;
-      if (n?.enviada) setAviso({ tipo: n.respuesta?.vertical && n.respuesta.vertical !== 'AUTOS' ? 'warning' : 'success', texto: `Entrega confirmada. ${textoBooking(n)}` });
+      if (n?.enviada) setAviso({ tipo: (n.estado_booking?.vertical ?? n.respuesta?.vertical) && (n.estado_booking?.vertical ?? n.respuesta?.vertical) !== 'AUTOS' ? 'warning' : 'success', texto: `Entrega confirmada. ${textoBooking(n)}` });
       else if (r.origen === 'BOOKING') setAviso({ tipo: 'warning', texto: `Entrega confirmada, pero Booking NO fue notificado: ${n?.detalle ?? 'sin detalle'}` });
       else setAviso({ tipo: 'success', texto: 'Entrega confirmada (reserva propia, no requiere avisar a Booking).' });
       setError('');
@@ -117,7 +119,7 @@ export default function Mostrador() {
       const { data } = await adminApi.post(`/reservas/${r.id}/reenviar-booking`);
       const n = data.notificacion_booking;
       setAviso(n?.enviada
-        ? { tipo: n.respuesta?.vertical && n.respuesta.vertical !== 'AUTOS' ? 'warning' : 'success', texto: `Aviso de ${data.tipo === 'DEVOLUCION' ? 'devolución' : 'entrega'} reenviado. ${textoBooking(n)}` }
+        ? { tipo: (n.estado_booking?.vertical ?? n.respuesta?.vertical) && (n.estado_booking?.vertical ?? n.respuesta?.vertical) !== 'AUTOS' ? 'warning' : 'success', texto: `Aviso de ${data.tipo === 'DEVOLUCION' ? 'devolución' : 'entrega'} reenviado. ${textoBooking(n)}` }
         : { tipo: 'warning', texto: `Booking NO recibió el aviso: ${n?.detalle ?? 'sin detalle'}` });
       setError('');
     } catch (e) {

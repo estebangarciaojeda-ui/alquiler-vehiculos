@@ -94,6 +94,8 @@ describe('máquina de estados y cooldown de 2 horas', () => {
     expect(estadoEfectivo(libre, [r], ahora)).toBe('RESERVADO');
     expect(estadoEfectivo(libre, [{ ...r, checkinEn: ahora }], ahora)).toBe('LISTO_PARA_ENTREGAR');
     expect(estadoEfectivo(libre, [{ ...r, entregadaEn: ahora }], ahora)).toBe('ENTREGADO');
+    // Llaves registradas antes de la fecha de recogida: todavía no está en uso, el auto sigue disponible para fechas anteriores.
+    expect(estadoEfectivo(libre, [{ ...r, fechaRecogida: '2026-12-01', fechaDevolucion: '2026-12-03', entregadaEn: ahora }], ahora)).toBe('DISPONIBLE');
     expect(estadoEfectivo(libre, [{ ...r, estado: 'CANCELADA' }], ahora)).toBe('DISPONIBLE');
     expect(estadoEfectivo(libre, [{ ...r, fechaRecogida: '2026-12-01', fechaDevolucion: '2026-12-03' }], ahora)).toBe('DISPONIBLE');
   });

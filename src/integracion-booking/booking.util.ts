@@ -170,9 +170,11 @@ export function estadoEfectivo(
   if (enLimpiezaActiva(v, ahora)) return 'EN_LIMPIEZA';
 
   const vivas = reservas.filter((r) => r.estado === 'CONFIRMADA');
-  if (vivas.some((r) => r.entregadaEn && !r.devueltaEn)) return 'ENTREGADO';
-
   const hoy = hoyEnEcuador(ahora);
+  // ENTREGADO = auto en uso: llaves entregadas, sin devolver y con el alquiler ya iniciado. Si las llaves se registraron antes de la
+  // fecha de recogida, el auto sigue figurando disponible para las fechas anteriores a esa recogida.
+  if (vivas.some((r) => r.entregadaEn && !r.devueltaEn && r.fechaRecogida <= hoy)) return 'ENTREGADO';
+
   const enVentana = vivas.filter((r) => !r.entregadaEn && r.fechaRecogida <= hoy && hoy < r.fechaDevolucion);
   if (enVentana.some((r) => r.checkinEn)) return 'LISTO_PARA_ENTREGAR';
   if (enVentana.length > 0) return 'RESERVADO';

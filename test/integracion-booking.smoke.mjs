@@ -255,6 +255,23 @@ ok('la compensación de la Saga NO se bloquea por el plazo => 200 CANCELLED', sa
 const otraVez = await http('POST', `/autos/orders/${pnrProx}/cancel`, {}, { 'Idempotency-Key': randomUUID() });
 ok('una orden ya cancelada responde 200 aunque haya pasado el plazo (idempotente)', otraVez.status === 200 && otraVez.json?.status === 'CANCELLED' && otraVez.json?.refund?.refund_id === saga.json?.refund?.refund_id);
 
+console.log('10e. Reserva entregada y sin devolver: fechas anteriores libres, posteriores ocultas hasta la devolución');
+const entIni = sumarDias(170);
+const oE = await http('POST', '/autos/orders/create', cuerpoReserva(autoD, entIni, sumarDias(171)), { 'Idempotency-Key': randomUUID() });
+ok('reserva futura (170→171 días) => 201', oE.status === 201, JSON.stringify(oE.json)?.slice(0, 200));
+const pnrE = oE.json?.pnr;
+const entE = await http('POST', `/autos/orders/${pnrE}/checkin-entrega`, { licencia_conducir: '1710034065', km_salida: 100 }, { 'Idempotency-Key': randomUUID() });
+ok('check-in de entrega (adelantado) => 200 ENTREGADO', entE.status === 200 && entE.json?.estado_orden === 'ENTREGADO', JSON.stringify(entE.json)?.slice(0, 160));
+ok('GET /autos/orders/{id} informa ENTREGADO (lo que lee Booking)', (await http('GET', `/autos/orders/${pnrE}`)).json?.status === 'ENTREGADO');
+const libreEn = async (a, b) => ((await http('POST', '/autos/search', { pickup_location: 'Quito', pickup_date: a, dropoff_date: b, pickup_time: '10:00', dropoff_time: '10:00', driver_age: 30 })).json?.data ?? []).some((x) => x.vehicle_id === autoD);
+ok('fechas anteriores a la recogida: el auto aparece', await libreEn(sumarDias(165), sumarDias(167)));
+ok('fechas posteriores: NO aparece hasta que se devuelva', !(await libreEn(sumarDias(175), sumarDias(177))));
+ok('el catálogo actual lo conserva (el alquiler aún no comienza)', (await http('GET', '/autos?limit=200')).json?.data?.some((a) => a.vehicle_id === autoD));
+const devE = await http('POST', `/autos/orders/${pnrE}/checkin-devolucion`, { km_retorno: 150, nivel_combustible: 90 }, { 'Idempotency-Key': randomUUID() });
+ok('check-in de devolución => 200 COMPLETADA', devE.status === 200 && devE.json?.estado_orden === 'COMPLETADA', JSON.stringify(devE.json)?.slice(0, 160));
+ok('tras devolver, las fechas posteriores vuelven a aparecer', await libreEn(sumarDias(175), sumarDias(177)));
+await http('PATCH', `/autos/${autoD}/estado`, { estado: 'DISPONIBLE' }, { 'X-Role': 'ADMIN' });
+
 console.log('11. Regresión del marketplace existente');
 ok('GET /api/v1/vehiculos sigue funcionando', (await http('GET', '/api/v1/vehiculos')).status === 200);
 const mk = await http('GET', `/api/v1/vehiculos?desde=${sumarDias(81)}&hasta=${sumarDias(83)}`);

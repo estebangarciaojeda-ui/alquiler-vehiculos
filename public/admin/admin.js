@@ -321,7 +321,7 @@ async function cargarSucursales() {
         const res = await api(`${ADMIN_API}/reservas/${b.dataset.reenviar}/reenviar-booking`, { method: 'POST', body: '{}' });
         const n = res.notificacion_booking;
         alert(n?.enviada
-          ? `Aviso de ${res.tipo === 'DEVOLUCION' ? 'devolución' : 'entrega'} reenviado. Booking respondió acknowledged=${n.respuesta?.acknowledged ?? true} (vertical: ${n.respuesta?.vertical ?? 's/d'}).${n.respuesta?.vertical && n.respuesta.vertical !== 'AUTOS' ? ' ⚠ Debería ser AUTOS: avisa a Booking.' : ''}`
+          ? `Aviso de ${res.tipo === 'DEVOLUCION' ? 'devolución' : 'entrega'} reenviado. Booking respondió acknowledged=${n.respuesta?.acknowledged ?? true} (estado: ${n.estado_booking?.estado ?? 's/d'}, vertical: ${n.estado_booking?.vertical ?? n.respuesta?.vertical ?? 's/d'}).${(n.estado_booking?.vertical ?? n.respuesta?.vertical) && (n.estado_booking?.vertical ?? n.respuesta?.vertical) !== 'AUTOS' ? ' ⚠ Debería ser AUTOS: avisa a Booking.' : ''}`
           : `Booking NO recibió el aviso: ${n?.detalle ?? 'sin detalle'}`);
       } catch (e) {
         alert(e.message);
@@ -533,7 +533,7 @@ async function cargarReservas() {
           body: JSON.stringify({ identificacion: cedula.trim(), licencia_conducir: licencia.trim(), km_salida: Number(km) }),
         });
         const n = res.notificacion_booking;
-        alert(`Entrega confirmada. ${n?.enviada ? `Booking Central respondió acknowledged=${n.respuesta?.acknowledged ?? true} (vertical: ${n.respuesta?.vertical ?? 's/d'}).${n.respuesta?.vertical && n.respuesta.vertical !== 'AUTOS' ? ' ⚠ Debería ser AUTOS: avisa a Booking.' : ''}` : `Booking NO fue notificado: ${n?.detalle ?? 'sin detalle'}`}`);
+        alert(`Entrega confirmada. ${n?.enviada ? `Booking Central respondió acknowledged=${n.respuesta?.acknowledged ?? true} (estado: ${n.estado_booking?.estado ?? 's/d'}, vertical: ${n.estado_booking?.vertical ?? n.respuesta?.vertical ?? 's/d'}).${(n.estado_booking?.vertical ?? n.respuesta?.vertical) && (n.estado_booking?.vertical ?? n.respuesta?.vertical) !== 'AUTOS' ? ' ⚠ Debería ser AUTOS: avisa a Booking.' : ''}` : `Booking NO fue notificado: ${n?.detalle ?? 'sin detalle'}`}`);
       } catch (e) {
         alert(e.message);
       }

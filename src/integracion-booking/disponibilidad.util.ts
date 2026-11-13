@@ -10,6 +10,20 @@ export interface Ventana {
   horaRecogida?: string | null;
   fechaDevolucion: string;
   horaDevolucion?: string | null;
+  /** Solo para reservas reales: si se entregaron las llaves y aún no se devolvió, el auto está fuera hasta que se registre la devolución. */
+  entregadaEn?: Date | null;
+  devueltaEn?: Date | null;
+}
+
+/** Fin "desconocido": la fecha de devolución real se sabrá cuando se registre la devolución. */
+const SIN_FIN = '9999-12-31';
+
+/**
+ * Una reserva ENTREGADA y sin devolver ocupa el auto desde su recogida y sin fecha de fin: hasta que no se registre la devolución
+ * (más las 2 h de limpieza) el auto no se ofrece para fechas posteriores. Las fechas anteriores a su recogida siguen libres.
+ */
+export function ventanasDeReservas(reservas: Ventana[]): Ventana[] {
+  return reservas.map((r) => (r.entregadaEn && !r.devueltaEn ? { fechaRecogida: r.fechaRecogida, horaRecogida: r.horaRecogida, fechaDevolucion: SIN_FIN, horaDevolucion: '00:00' } : r));
 }
 
 /** Ecuador (America/Guayaquil) está en UTC-5 todo el año (sin horario de verano). */
@@ -29,7 +43,8 @@ export function ventanaLimpieza(v: { estadoOperativo: string; disponibleDesde: D
 /** Alquileres confirmados del auto más, si aplica, su limpieza en curso: todo lo que ocupa el auto en el tiempo. */
 export function ocupaciones(v: { estadoOperativo: string; disponibleDesde: Date | null }, reservas: Ventana[], ahora: Date = new Date()): Ventana[] {
   const limpieza = ventanaLimpieza(v, ahora);
-  return limpieza ? [...reservas, limpieza] : reservas;
+  const ventanas = ventanasDeReservas(reservas);
+  return limpieza ? [...ventanas, limpieza] : ventanas;
 }
 
 export interface Alternativa {
@@ -72,6 +87,7 @@ export function hayConflicto(existentes: Ventana[], nueva: Ventana, margen: numb
 export function disponibleDesde(existentes: Ventana[], nueva: Ventana, margen: number = COOLDOWN_MINUTOS): string | null {
   const choques = existentes.filter((e) => choca(e, nueva, margen));
   if (choques.length === 0) return null;
+  if (choques.some((e) => e.fechaDevolucion === SIN_FIN)) return null; // fuera hasta que se registre la devolución
   const fin = Math.max(...choques.map((e) => aMinutos(e.fechaDevolucion, e.horaDevolucion) + margen));
   return new Date(fin * 60000).toISOString().slice(0, 16);
 }
