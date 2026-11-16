@@ -124,7 +124,7 @@ Cada petición y cada evento llevan un `correlation_id` (cabecera `X-Correlation
 - **Enterprise Service Bus: no hay dentro de este repositorio.** Hoy AutoSpot se comunica punto a punto con Booking Central (REST, gRPC y avisos HTTP). El papel de bus o agregador del ecosistema lo cumple Booking Central, que expone, por ejemplo, la agregación de reservas de todas las tiendas.
 - **Lo que sí cumple funciones parecidas a un ESB**, a pequeña escala: el adaptador `booking.util.ts` traduce los formatos de Booking al modelo propio; los alias de rutas (`/autos`, `/api/v3/autos`) enrutan el mismo contrato; el Outbox y los webhooks publican eventos; y la autenticación se resuelve con guards (`X-API-Key`, JWT y cookie firmada).
 
-Diseño de referencia (esquema de la materia). Lo punteado no existe todavía:
+Diseño de referencia (esquema de la materia). Los paréntesis son lo que no existe todavía:
 
 ```
   UI (marketplace, panel clásico, panel React)
@@ -135,9 +135,41 @@ Diseño de referencia (esquema de la materia). Lo punteado no existe todavía:
         +-----------+-----------+
         v           v           v
      [Autos]   (Alojamientos) (Vuelos) ...     <- Autos = AutoSpot (existe)
-        \___________|___________/
-              ( Event Bus )                                    <- hoy: Outbox y webhooks
+        |
+        v
+  +--------------------------------------------------------------+
+  |  EVENT BUS de AutoSpot (hoy, sin broker)                      |
+  |   1. Outbox: tabla autos_eventos (CloudEvents)                |
+  |        -> Booking la lee con GET /autos/eventos               |
+  |   2. Webhooks (contrato GDS) -> POST a las URL suscritas      |
+  |   3. Stock -> gRPC PushStockUpdate (respaldo REST)            |
+  +--------------------------------------------------------------+
+        |
+        v
+  ( RabbitMQ / Kafka )  <- lo que el contrato admite como bus real; no se usa
 ```
+
+**Dónde está el bus de eventos en el código**
+
+| Pieza | Archivo |
+|---|---|
+| Outbox: guarda y publica los eventos (CloudEvents 1.0) | [`src/integracion-booking/eventos.service.ts`](src/integracion-booking/eventos.service.ts) (tabla `autos_eventos`, definida en `entities.ts`) |
+| Feed que consume Booking: `GET /autos/eventos` | [`src/integracion-booking/autos-b2b.controller.ts`](src/integracion-booking/autos-b2b.controller.ts) |
+| Webhooks de órdenes (`CAR_ORDER_CONFIRMED` y `CAR_ORDER_CANCELLED`) | [`src/gds-autos/webhooks.service.ts`](src/gds-autos/webhooks.service.ts) |
+| Envío de stock a Booking (gRPC y REST) | [`src/integracion-booking/stock-sync.service.ts`](src/integracion-booking/stock-sync.service.ts) |
+
+**Enlaces en GitHub**
+
+| Pieza | Enlace |
+|---|---|
+| Outbox de eventos | https://github.com/estebangarciaojeda-ui/alquiler-vehiculos/blob/main/src/integracion-booking/eventos.service.ts |
+| Tabla `autos_eventos` (entidad) | https://github.com/estebangarciaojeda-ui/alquiler-vehiculos/blob/main/src/integracion-booking/entities.ts |
+| Ruta `GET /autos/eventos` | https://github.com/estebangarciaojeda-ui/alquiler-vehiculos/blob/main/src/integracion-booking/autos-b2b.controller.ts |
+| Webhooks de órdenes | https://github.com/estebangarciaojeda-ui/alquiler-vehiculos/blob/main/src/gds-autos/webhooks.service.ts |
+| Envío de stock a Booking | https://github.com/estebangarciaojeda-ui/alquiler-vehiculos/blob/main/src/integracion-booking/stock-sync.service.ts |
+| Carpeta completa de la integración | https://github.com/estebangarciaojeda-ui/alquiler-vehiculos/tree/main/src/integracion-booking |
+
+Hoy el "bus" es un registro en la base de datos que otros sistemas consultan (*pull*) más avisos HTTP (*push*). Cambiar a RabbitMQ o Kafka significaría publicar los mismos eventos del Outbox en una cola, sin cambiar sus datos.
 
 ## 5. Endpoints principales (`/swagger` para probarlos todos)
 
